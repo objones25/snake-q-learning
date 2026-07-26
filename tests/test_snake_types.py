@@ -1,6 +1,16 @@
 import pytest
 
-from snake_types import Direction, Sign
+from snake_types import Action, Direction, Sign
+
+
+class TestAction:
+    def test_values(self):
+        assert Action.STRAIGHT == 0
+        assert Action.RIGHT == 1
+        assert Action.LEFT == 2
+
+    def test_is_int_enum_with_three_members(self):
+        assert len(list(Action)) == 3
 
 
 class TestSign:

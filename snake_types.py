@@ -11,6 +11,12 @@ class Sign(IntEnum):
         return Sign(0 if x == 0 else (1 if x > 0 else -1))
 
 
+class Action(IntEnum):
+    STRAIGHT = 0
+    RIGHT = 1
+    LEFT = 2
+
+
 class Direction(Enum):
     RIGHT = 0
     DOWN = 1
