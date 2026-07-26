@@ -2,7 +2,7 @@ import random
 
 from snake import Snake
 from snake_state import SnakeState
-from snake_types import Direction
+from snake_types import Action, Direction
 
 
 FOOD_REWARD = 10
@@ -31,3 +31,40 @@ class SnakeEnv:
         }
         free_cells = list(all_cells - self.snake.pos_set)
         return random.choice(free_cells)
+
+    def step(self, action: Action) -> tuple[SnakeState, float, bool, dict]:
+        if action == Action.RIGHT:
+            self.snake.turn_right()
+        elif action == Action.LEFT:
+            self.snake.turn_left()
+
+        new_head = self.snake.direction.apply(self.snake.head)
+        food_consumed = new_head == self.food
+
+        out_of_bounds = not (
+            0 <= new_head[0] < self.grid_size and 0 <= new_head[1] < self.grid_size
+        )
+        occupied = (
+            self.snake.pos_set
+            if food_consumed
+            else self.snake.pos_set - {self.snake.tail}
+        )
+        collision = out_of_bounds or new_head in occupied
+
+        if collision:
+            state = SnakeState.from_world(self.snake, self.food, self.grid_size)
+            return state, DEATH_REWARD, True, {"score": self.snake.length}
+
+        self.snake.move(food_consumed)
+
+        if food_consumed:
+            reward = FOOD_REWARD
+            self.steps_since_food = 0
+            self.food = self._place_food()
+        else:
+            reward = STEP_REWARD
+            self.steps_since_food += 1
+
+        done = self.steps_since_food > 100 * self.snake.length
+        state = SnakeState.from_world(self.snake, self.food, self.grid_size)
+        return state, reward, done, {"score": self.snake.length}
