@@ -106,7 +106,7 @@ Reward constants (module-level): `FOOD_REWARD = 10`, `DEATH_REWARD = -10`,
 
 ## Data flow
 
-```
+```text
 SnakeEnv.reset() ──> Snake + food + grid_size ──> SnakeState.from_world() ──> SnakeState
                                                                                    │
 training loop picks action ◄──────────────────────────────────────────────────────┘
