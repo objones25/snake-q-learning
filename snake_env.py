@@ -1,4 +1,5 @@
 import random
+from dataclasses import dataclass
 
 from snake import Snake
 from snake_state import SnakeState
@@ -7,6 +8,15 @@ from snake_types import Action, Direction
 FOOD_REWARD = 10
 DEATH_REWARD = -10
 STEP_REWARD = 0
+
+
+@dataclass(frozen=True, slots=True)
+class StepResult:
+    state: SnakeState
+    reward: float
+    done: bool
+    truncated: bool
+    info: dict
 
 
 class SnakeEnv:
@@ -31,16 +41,13 @@ class SnakeEnv:
         free_cells = list(self._all_cells - self.snake.pos_set)
         return random.choice(free_cells)
 
-    def step(self, action: Action) -> tuple[SnakeState, float, bool, dict]:
+    def step(self, action: Action) -> StepResult:
         """Advance the environment by one action.
 
-        Returns (state, reward, done, info). `done=True` can mean either
-        termination (wall/self collision) or truncation (starvation
-        timeout); on the truncation path only, `info["truncated"]` is set
-        to True. Callers should use `info.get("truncated", False)` to
-        distinguish the two, since a training loop typically bootstraps
-        the value estimate through truncation but not through real
-        termination.
+        `done=True` can mean either termination (wall/self collision) or
+        truncation (starvation timeout) — check `truncated` to distinguish
+        them, since a training loop typically bootstraps the value estimate
+        through truncation but not through real termination.
         """
         if action == Action.RIGHT:
             self.snake.turn_right()
@@ -62,7 +69,7 @@ class SnakeEnv:
 
         if collision:
             state = SnakeState.from_world(self.snake, self.food, self.grid_size)
-            return state, DEATH_REWARD, True, {"score": self.snake.length}
+            return StepResult(state, DEATH_REWARD, True, False, {"score": self.snake.length})
 
         self.snake.move(food_consumed)
 
@@ -76,7 +83,4 @@ class SnakeEnv:
 
         done = self.steps_since_food > 100 * self.snake.length
         state = SnakeState.from_world(self.snake, self.food, self.grid_size)
-        info = {"score": self.snake.length}
-        if done:
-            info["truncated"] = True
-        return state, reward, done, info
+        return StepResult(state, reward, done, done, {"score": self.snake.length})

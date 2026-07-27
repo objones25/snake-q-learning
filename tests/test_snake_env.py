@@ -84,9 +84,10 @@ class TestStepCollision:
         env.reset()
         env.snake = Snake((11, 5), Direction.RIGHT)
         env.food = (0, 0)
-        state, reward, done, info = env.step(Action.STRAIGHT)
-        assert done is True
-        assert reward == DEATH_REWARD
+        result = env.step(Action.STRAIGHT)
+        assert result.done is True
+        assert result.truncated is False
+        assert result.reward == DEATH_REWARD
         assert env.snake.head == (11, 5)  # snake not moved on collision
 
     def test_self_collision_ends_episode(self):
@@ -97,9 +98,9 @@ class TestStepCollision:
         snake.pos_set = set(snake.body)
         env.snake = snake
         env.food = (0, 0)
-        state, reward, done, info = env.step(Action.STRAIGHT)
-        assert done is True
-        assert reward == DEATH_REWARD
+        result = env.step(Action.STRAIGHT)
+        assert result.done is True
+        assert result.reward == DEATH_REWARD
 
     def test_moving_into_vacated_tail_is_not_collision(self):
         env = SnakeEnv(grid_size=12)
@@ -109,8 +110,8 @@ class TestStepCollision:
         snake.pos_set = set(snake.body)
         env.snake = snake
         env.food = (0, 0)
-        state, reward, done, info = env.step(Action.STRAIGHT)
-        assert done is False
+        result = env.step(Action.STRAIGHT)
+        assert result.done is False
         assert env.snake.head == (6, 5)
         assert env.snake.length == 2
         assert set(env.snake.body) == env.snake.pos_set
@@ -122,22 +123,22 @@ class TestStepFoodAndReward:
         env.reset()
         env.food = env.snake.direction.apply(env.snake.head)
         old_length = env.snake.length
-        state, reward, done, info = env.step(Action.STRAIGHT)
-        assert reward == FOOD_REWARD
-        assert done is False
+        result = env.step(Action.STRAIGHT)
+        assert result.reward == FOOD_REWARD
+        assert result.done is False
         assert env.snake.length == old_length + 1
         assert env.steps_since_food == 0
         assert env.food not in env.snake.pos_set
-        assert info["score"] == env.snake.length
+        assert result.info["score"] == env.snake.length
 
     def test_non_eating_move_gives_neutral_reward(self):
         env = SnakeEnv(grid_size=12)
         env.reset()
         env.food = (0, 0)
         old_length = env.snake.length
-        state, reward, done, info = env.step(Action.STRAIGHT)
-        assert reward == STEP_REWARD
-        assert done is False
+        result = env.step(Action.STRAIGHT)
+        assert result.reward == STEP_REWARD
+        assert result.done is False
         assert env.snake.length == old_length
         assert env.steps_since_food == 1
 
@@ -148,53 +149,53 @@ class TestStepStarvation:
         env.reset()
         env.food = (0, 0)
         env.steps_since_food = 100 * env.snake.length - 1
-        state, reward, done, info = env.step(Action.STRAIGHT)
-        assert done is False
+        result = env.step(Action.STRAIGHT)
+        assert result.done is False
 
     def test_done_once_over_threshold(self):
         env = SnakeEnv(grid_size=12)
         env.reset()
         env.food = (0, 0)
         env.steps_since_food = 100 * env.snake.length
-        state, reward, done, info = env.step(Action.STRAIGHT)
-        assert done is True
-        assert reward == STEP_REWARD
+        result = env.step(Action.STRAIGHT)
+        assert result.done is True
+        assert result.reward == STEP_REWARD
 
-    def test_starvation_timeout_marks_info_as_truncated(self):
+    def test_starvation_timeout_marks_result_as_truncated(self):
         env = SnakeEnv(grid_size=12)
         env.reset()
         env.food = (0, 0)
         env.steps_since_food = 100 * env.snake.length
-        state, reward, done, info = env.step(Action.STRAIGHT)
-        assert done is True
-        assert info["truncated"] is True
+        result = env.step(Action.STRAIGHT)
+        assert result.done is True
+        assert result.truncated is True
 
 
-class TestStepInfoTruncatedKeyAbsence:
-    def test_death_path_has_no_truncated_key(self):
+class TestStepTruncatedFlag:
+    def test_death_path_is_not_truncated(self):
         env = SnakeEnv(grid_size=12)
         env.reset()
         env.snake = Snake((11, 5), Direction.RIGHT)
         env.food = (0, 0)
-        state, reward, done, info = env.step(Action.STRAIGHT)
-        assert done is True
-        assert "truncated" not in info
+        result = env.step(Action.STRAIGHT)
+        assert result.done is True
+        assert result.truncated is False
 
-    def test_food_path_has_no_truncated_key(self):
+    def test_food_path_is_not_truncated(self):
         env = SnakeEnv(grid_size=12)
         env.reset()
         env.food = env.snake.direction.apply(env.snake.head)
-        state, reward, done, info = env.step(Action.STRAIGHT)
-        assert reward == FOOD_REWARD
-        assert "truncated" not in info
+        result = env.step(Action.STRAIGHT)
+        assert result.reward == FOOD_REWARD
+        assert result.truncated is False
 
-    def test_non_eating_move_has_no_truncated_key(self):
+    def test_non_eating_move_is_not_truncated(self):
         env = SnakeEnv(grid_size=12)
         env.reset()
         env.food = (0, 0)
-        state, reward, done, info = env.step(Action.STRAIGHT)
-        assert reward == STEP_REWARD
-        assert "truncated" not in info
+        result = env.step(Action.STRAIGHT)
+        assert result.reward == STEP_REWARD
+        assert result.truncated is False
 
 
 class TestLifecycle:
@@ -221,12 +222,12 @@ class TestLifecycle:
         env = SnakeEnv(grid_size=grid_size)
 
         for _ in range(num_episodes):
-            state = env.reset()
+            env.reset()
             reached_done = False
 
             for _ in range(max_steps_per_episode):
                 action = random.choice(list(Action))
-                state, reward, done, info = env.step(action)
+                result = env.step(action)
 
                 body = env.snake.body
                 assert set(body) == env.snake.pos_set
@@ -240,11 +241,11 @@ class TestLifecycle:
                 assert 0 <= fy < grid_size
                 assert env.food not in env.snake.pos_set
 
-                assert 0 <= state.index < SnakeState.N_STATES
-                assert reward in (FOOD_REWARD, DEATH_REWARD, STEP_REWARD)
-                assert info["score"] == env.snake.length
+                assert 0 <= result.state.index < SnakeState.N_STATES
+                assert result.reward in (FOOD_REWARD, DEATH_REWARD, STEP_REWARD)
+                assert result.info["score"] == env.snake.length
 
-                if done:
+                if result.done:
                     reached_done = True
                     break
 
