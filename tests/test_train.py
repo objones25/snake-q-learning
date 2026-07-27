@@ -28,3 +28,18 @@ class TestTrain:
             path = os.path.join(tmpdir, "q_table.json")
             train(n_episodes=20, grid_size=8, save_path=path)
             assert os.path.exists(path)
+
+    def test_death_is_passed_to_update_as_not_truncated(self, monkeypatch):
+        seen = []
+        original = QLearningAgent.update
+
+        def spy(self, state_index, action, reward, next_index, done, truncated):
+            if done:
+                seen.append((done, truncated))
+            original(self, state_index, action, reward, next_index, done, truncated)
+
+        monkeypatch.setattr(QLearningAgent, "update", spy)
+        with tempfile.TemporaryDirectory() as tmpdir:
+            train(n_episodes=20, grid_size=8, save_path=os.path.join(tmpdir, "q.json"))
+
+        assert (True, False) in seen

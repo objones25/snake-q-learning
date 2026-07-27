@@ -83,4 +83,4 @@ class SnakeEnv:
 
         done = self.steps_since_food > 100 * self.snake.length
         state = SnakeState.from_world(self.snake, self.food, self.grid_size)
-        return StepResult(state, reward, done, done, {"score": self.snake.length})
+        return StepResult(state=state, reward=reward, done=done, truncated=done, info={"score": self.snake.length})

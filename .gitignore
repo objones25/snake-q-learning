@@ -9,5 +9,8 @@ wheels/
 # Virtual environments
 .venv
 
+# Training artifacts
+q_table.json
+
 # Claude Code worktrees
 .claude/
