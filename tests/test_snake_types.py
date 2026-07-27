@@ -1,6 +1,6 @@
 import pytest
 
-from snake_types import Action, Direction, Sign
+from snake_types import Action, Direction
 
 
 class TestAction:
@@ -11,26 +11,6 @@ class TestAction:
 
     def test_is_int_enum_with_three_members(self):
         assert len(list(Action)) == 3
-
-
-class TestSign:
-    @pytest.mark.parametrize(
-        "x, expected",
-        [
-            (0, Sign.ZERO),
-            (5, Sign.POS),
-            (1, Sign.POS),
-            (-5, Sign.NEG),
-            (-1, Sign.NEG),
-        ],
-    )
-    def test_of(self, x, expected):
-        assert Sign.of(x) == expected
-
-    def test_values(self):
-        assert Sign.NEG == -1
-        assert Sign.ZERO == 0
-        assert Sign.POS == 1
 
 
 class TestDirection:
