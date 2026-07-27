@@ -84,7 +84,7 @@ fragile in the same way.
 
 A pygame renderer will eventually need to draw the actual world (snake body
 cells, food position, grid dimensions) — data that `SnakeState` deliberately
-does *not* carry, since it's a lossy 72-state encoding built for the Q-table,
+does _not_ carry, since it's a lossy 72-state encoding built for the Q-table,
 not for drawing pixels. `SnakeEnv` already exposes what a renderer would
 need as plain public attributes: `.snake` (for `.body`), `.food`, and
 `.grid_size`. A future renderer module reads those directly after each

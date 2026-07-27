@@ -22,15 +22,21 @@ def train(
             action = agent.choose_action(state.index)
             result = env.step(action)
             agent.update(
-                state.index, action, result.reward,
-                result.state.index, result.done, result.truncated,
+                state.index,
+                action,
+                result.reward,
+                result.state.index,
+                result.done,
+                result.truncated,
             )
             state = result.state
 
         recent_scores.append(result.info["score"])
         if episode % 500 == 0:
             avg_score = sum(recent_scores) / len(recent_scores)
-            print(f"episode {episode:6d}  epsilon={agent.epsilon:.3f}  avg_score={avg_score:.2f}")
+            print(
+                f"episode {episode:6d}  epsilon={agent.epsilon:.3f}  avg_score={avg_score:.2f}"
+            )
 
     agent.save(save_path)
     return agent
