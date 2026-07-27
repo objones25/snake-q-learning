@@ -1,3 +1,4 @@
+import inspect
 import os
 import tempfile
 
@@ -43,3 +44,8 @@ class TestTrain:
             train(n_episodes=20, grid_size=8, save_path=os.path.join(tmpdir, "q.json"))
 
         assert (True, False) in seen
+
+
+class TestDefaults:
+    def test_default_n_episodes_is_200000(self):
+        assert inspect.signature(train).parameters["n_episodes"].default == 200_000
