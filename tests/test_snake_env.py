@@ -1,5 +1,7 @@
-import pytest
+import random
 from collections import deque
+
+import pytest
 
 from snake import Snake
 from snake_env import SnakeEnv, DEATH_REWARD, FOOD_REWARD, STEP_REWARD
@@ -111,6 +113,7 @@ class TestStepCollision:
         assert done is False
         assert env.snake.head == (6, 5)
         assert env.snake.length == 2
+        assert set(env.snake.body) == env.snake.pos_set
 
 
 class TestStepFoodAndReward:
@@ -156,3 +159,95 @@ class TestStepStarvation:
         state, reward, done, info = env.step(Action.STRAIGHT)
         assert done is True
         assert reward == STEP_REWARD
+
+    def test_starvation_timeout_marks_info_as_truncated(self):
+        env = SnakeEnv(grid_size=12)
+        env.reset()
+        env.food = (0, 0)
+        env.steps_since_food = 100 * env.snake.length
+        state, reward, done, info = env.step(Action.STRAIGHT)
+        assert done is True
+        assert info["truncated"] is True
+
+
+class TestStepInfoTruncatedKeyAbsence:
+    def test_death_path_has_no_truncated_key(self):
+        env = SnakeEnv(grid_size=12)
+        env.reset()
+        env.snake = Snake((11, 5), Direction.RIGHT)
+        env.food = (0, 0)
+        state, reward, done, info = env.step(Action.STRAIGHT)
+        assert done is True
+        assert "truncated" not in info
+
+    def test_food_path_has_no_truncated_key(self):
+        env = SnakeEnv(grid_size=12)
+        env.reset()
+        env.food = env.snake.direction.apply(env.snake.head)
+        state, reward, done, info = env.step(Action.STRAIGHT)
+        assert reward == FOOD_REWARD
+        assert "truncated" not in info
+
+    def test_non_eating_move_has_no_truncated_key(self):
+        env = SnakeEnv(grid_size=12)
+        env.reset()
+        env.food = (0, 0)
+        state, reward, done, info = env.step(Action.STRAIGHT)
+        assert reward == STEP_REWARD
+        assert "truncated" not in info
+
+
+class TestLifecycle:
+    def test_random_policy_episodes_hold_invariants_every_step(self):
+        # Realistic reset() -> step() -> ... -> done loop under a random
+        # policy. This is what would have caught the Snake.move() pos_set
+        # corruption bug: single hand-assembled steps never exercised the
+        # "head moves into the cell the tail is vacating this same move"
+        # case, so the desync went unnoticed by 105 green tests.
+        #
+        # SnakeEnv itself draws its randomness (start direction, food
+        # placement) from the shared `random` module rather than an
+        # injected Random instance, so the module-level seed is what we
+        # need to pin for a reproducible, deterministic test - a
+        # locally-scoped random.Random(...) would only control our own
+        # action choices and leave the env's internal randomness (and
+        # therefore whether this test actually exercises the bug)
+        # dependent on whatever happened to run before it.
+        grid_size = 8
+        num_episodes = 500
+        max_steps_per_episode = 1000
+        random.seed(1)
+
+        env = SnakeEnv(grid_size=grid_size)
+
+        for _ in range(num_episodes):
+            state = env.reset()
+            reached_done = False
+
+            for _ in range(max_steps_per_episode):
+                action = random.choice(list(Action))
+                state, reward, done, info = env.step(action)
+
+                body = env.snake.body
+                assert set(body) == env.snake.pos_set
+                assert len(body) == len(set(body))
+                for x, y in body:
+                    assert 0 <= x < grid_size
+                    assert 0 <= y < grid_size
+
+                fx, fy = env.food
+                assert 0 <= fx < grid_size
+                assert 0 <= fy < grid_size
+                assert env.food not in env.snake.pos_set
+
+                assert 0 <= state.index < SnakeState.N_STATES
+                assert reward in (FOOD_REWARD, DEATH_REWARD, STEP_REWARD)
+                assert info["score"] == env.snake.length
+
+                if done:
+                    reached_done = True
+                    break
+
+            assert reached_done, (
+                f"episode did not reach done within {max_steps_per_episode} steps"
+            )

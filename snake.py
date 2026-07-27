@@ -36,8 +36,8 @@ class Snake:
 
     def move(self, food_consumed: bool) -> None:
         new_head = self.direction.apply(self.head)
-        self.body.append(new_head)
-        self.pos_set.add(new_head)
         if not food_consumed:
             old_tail = self.body.popleft()
             self.pos_set.discard(old_tail)
+        self.body.append(new_head)
+        self.pos_set.add(new_head)

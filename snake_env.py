@@ -33,6 +33,16 @@ class SnakeEnv:
         return random.choice(free_cells)
 
     def step(self, action: Action) -> tuple[SnakeState, float, bool, dict]:
+        """Advance the environment by one action.
+
+        Returns (state, reward, done, info). `done=True` can mean either
+        termination (wall/self collision) or truncation (starvation
+        timeout); on the truncation path only, `info["truncated"]` is set
+        to True. Callers should use `info.get("truncated", False)` to
+        distinguish the two, since a training loop typically bootstraps
+        the value estimate through truncation but not through real
+        termination.
+        """
         if action == Action.RIGHT:
             self.snake.turn_right()
         elif action == Action.LEFT:
@@ -67,4 +77,7 @@ class SnakeEnv:
 
         done = self.steps_since_food > 100 * self.snake.length
         state = SnakeState.from_world(self.snake, self.food, self.grid_size)
-        return state, reward, done, {"score": self.snake.length}
+        info = {"score": self.snake.length}
+        if done:
+            info["truncated"] = True
+        return state, reward, done, info

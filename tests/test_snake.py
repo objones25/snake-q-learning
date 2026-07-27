@@ -1,3 +1,5 @@
+from collections import deque
+
 import pytest
 
 from snake import Snake
@@ -87,3 +89,17 @@ class TestMove:
         snake.turn_right()  # now DOWN
         snake.move(food_consumed=False)
         assert snake.head == (0, 1)
+        assert set(snake.body) == snake.pos_set
+
+    def test_move_into_vacated_tail_keeps_pos_set_in_sync(self):
+        # Regression test: head moves into the cell the tail is vacating
+        # this same move (a U-shaped body moving "forward"). A naive
+        # add-then-discard implementation cancels the two pos_set
+        # updates out, silently dropping the new head cell from pos_set.
+        snake = Snake((5, 5), Direction.RIGHT)
+        snake.body = deque([(6, 5), (5, 5)])  # tail, head
+        snake.pos_set = set(snake.body)
+        snake.move(food_consumed=False)
+        assert list(snake.body) == [(5, 5), (6, 5)]
+        assert snake.pos_set == {(5, 5), (6, 5)}
+        assert set(snake.body) == snake.pos_set
