@@ -15,6 +15,9 @@ class SnakeEnv:
         self.snake: Snake
         self.food: tuple[int, int]
         self.steps_since_food = 0
+        self._all_cells = {
+            (x, y) for x in range(grid_size) for y in range(grid_size)
+        }
 
     def reset(self) -> SnakeState:
         start_pos = (self.grid_size // 2, self.grid_size // 2)
@@ -25,10 +28,7 @@ class SnakeEnv:
         return SnakeState.from_world(self.snake, self.food, self.grid_size)
 
     def _place_food(self) -> tuple[int, int]:
-        all_cells = {
-            (x, y) for x in range(self.grid_size) for y in range(self.grid_size)
-        }
-        free_cells = list(all_cells - self.snake.pos_set)
+        free_cells = list(self._all_cells - self.snake.pos_set)
         return random.choice(free_cells)
 
     def step(self, action: Action) -> tuple[SnakeState, float, bool, dict]:
