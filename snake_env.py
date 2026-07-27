@@ -4,7 +4,6 @@ from snake import Snake
 from snake_state import SnakeState
 from snake_types import Action, Direction
 
-
 FOOD_REWARD = 10
 DEATH_REWARD = -10
 STEP_REWARD = 0
@@ -13,8 +12,8 @@ STEP_REWARD = 0
 class SnakeEnv:
     def __init__(self, grid_size: int = 12):
         self.grid_size = grid_size
-        self.snake: Snake | None = None
-        self.food: tuple[int, int] | None = None
+        self.snake: Snake
+        self.food: tuple[int, int]
         self.steps_since_food = 0
 
     def reset(self) -> SnakeState:
