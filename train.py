@@ -6,7 +6,7 @@ from snake_state import SnakeState
 
 
 def train(
-    n_episodes: int = 200_000,
+    n_episodes: int = 30_000,
     grid_size: int = 12,
     save_path: str = "q_table.json",
 ) -> QLearningAgent:

@@ -2,6 +2,8 @@ import inspect
 import os
 import tempfile
 
+import pytest
+
 from q_agent import QLearningAgent
 from snake_state import SnakeState
 from train import train
@@ -22,7 +24,7 @@ class TestTrain:
             path = os.path.join(tmpdir, "q_table.json")
             agent = train(n_episodes=20, grid_size=8, save_path=path)
 
-        assert agent.epsilon < agent.epsilon_start
+        assert agent.epsilon == pytest.approx(0.996238)
 
     def test_saves_q_table_to_path(self):
         with tempfile.TemporaryDirectory() as tmpdir:
@@ -47,5 +49,5 @@ class TestTrain:
 
 
 class TestDefaults:
-    def test_default_n_episodes_is_200000(self):
-        assert inspect.signature(train).parameters["n_episodes"].default == 200_000
+    def test_default_n_episodes_is_30000(self):
+        assert inspect.signature(train).parameters["n_episodes"].default == 30_000

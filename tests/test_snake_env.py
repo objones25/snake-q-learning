@@ -222,7 +222,7 @@ class TestLifecycle:
         env = SnakeEnv(grid_size=grid_size)
 
         for _ in range(num_episodes):
-            env.reset()
+            state = env.reset()
             reached_done = False
 
             for _ in range(max_steps_per_episode):
@@ -244,6 +244,16 @@ class TestLifecycle:
                 assert 0 <= result.state.index < SnakeState.N_STATES
                 assert result.reward in (FOOD_REWARD, DEATH_REWARD, STEP_REWARD)
                 assert result.info["score"] == env.snake.length
+
+                danger_for_action = {
+                    Action.STRAIGHT: state.dng_straight,
+                    Action.RIGHT: state.dng_right,
+                    Action.LEFT: state.dng_left,
+                }[action]
+                is_death = result.done and not result.truncated
+                assert (danger_for_action == 0) == is_death
+
+                state = result.state
 
                 if result.done:
                     reached_done = True

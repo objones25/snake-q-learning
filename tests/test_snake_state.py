@@ -145,6 +145,7 @@ class TestFromWorldDanger:
             (3, 1),  # obstacle 3 steps away -> ray distance=2 -> bucket 1
             (4, 2),  # obstacle 4 steps away -> ray distance=3 -> bucket 2
             (6, 2),  # obstacle 6 steps away -> ray distance=5 -> bucket 2
+            (8, 3),  # obstacle 8 steps away -> beyond MAX_DANGER_SCAN=6 -> bucket 3
         ],
     )
     def test_danger_bucket_scales_with_obstacle_distance(
@@ -237,3 +238,17 @@ class TestFromWorldFoodBuckets:
         food = (head[0] + 4 * left.dx, head[1] + 4 * left.dy)
         state = SnakeState.from_world(snake, food=food, grid_size=20)
         assert (state.food_fwd, state.food_lat) == (0, -2)
+
+    def test_food_diagonal_offset(self, direction):
+        # 5 steps along the forward axis, 2 steps along the right axis:
+        # raw fwd component = 5 (far -> magnitude 2), raw lat component = 2
+        # (near -> magnitude 1), giving (food_fwd, food_lat) == (2, 1).
+        snake = Snake((5, 5), direction)
+        head = snake.head
+        right = direction.turn_right()
+        food = (
+            head[0] + 5 * direction.dx + 2 * right.dx,
+            head[1] + 5 * direction.dy + 2 * right.dy,
+        )
+        state = SnakeState.from_world(snake, food=food, grid_size=20)
+        assert (state.food_fwd, state.food_lat) == (2, 1)

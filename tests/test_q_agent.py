@@ -108,6 +108,6 @@ class TestSaveLoad:
 
 
 class TestDefaults:
-    def test_default_epsilon_decay_episodes_is_100000(self):
+    def test_default_epsilon_decay_episodes_is_5000(self):
         agent = QLearningAgent(n_states=5)
-        assert agent.epsilon_decay_episodes == 100_000
+        assert agent.epsilon_decay_episodes == 5_000
