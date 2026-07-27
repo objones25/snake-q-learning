@@ -4,12 +4,11 @@ from collections import deque
 import pytest
 
 from snake import Snake
-from snake_state import SnakeState
-from snake_types import Direction, Sign
+from snake_state import N_DANGER_BUCKETS, SnakeState
+from snake_types import Direction
 
 
-def make_state(dng_straight=False, dng_right=False, dng_left=False,
-                food_fwd=Sign.NEG, food_lat=Sign.NEG):
+def make_state(dng_straight=0, dng_right=0, dng_left=0, food_fwd=0, food_lat=0):
     return SnakeState(
         dng_straight=dng_straight,
         dng_right=dng_right,
@@ -20,52 +19,64 @@ def make_state(dng_straight=False, dng_right=False, dng_left=False,
 
 
 class TestIndex:
-    def test_all_false_min_food_is_zero(self):
-        state = make_state()
+    def test_min_combination_is_zero(self):
+        state = make_state(
+            dng_straight=0, dng_right=0, dng_left=0, food_fwd=-2, food_lat=-2
+        )
         assert state.index == 0
 
     @pytest.mark.parametrize(
-        "dng_straight, dng_right, dng_left, expected_danger_bits",
+        "dng_straight, dng_right, dng_left, expected_danger_component",
         [
-            (False, False, False, 0),
-            (False, False, True, 1),
-            (False, True, False, 2),
-            (False, True, True, 3),
-            (True, False, False, 4),
-            (True, False, True, 5),
-            (True, True, False, 6),
-            (True, True, True, 7),
+            (0, 0, 0, 0),
+            (0, 0, 1, 1),
+            (0, 0, 2, 2),
+            (0, 0, 3, 3),
+            (0, 1, 0, 4),
+            (1, 0, 0, 16),
+            (3, 3, 3, 63),
         ],
     )
-    def test_danger_bits_scale_index(self, dng_straight, dng_right, dng_left, expected_danger_bits):
-        state = make_state(dng_straight=dng_straight, dng_right=dng_right, dng_left=dng_left)
-        assert state.index == expected_danger_bits * 9
+    def test_danger_component_scales_index_by_25(
+        self, dng_straight, dng_right, dng_left, expected_danger_component
+    ):
+        state = make_state(
+            dng_straight=dng_straight,
+            dng_right=dng_right,
+            dng_left=dng_left,
+            food_fwd=-2,
+            food_lat=-2,
+        )
+        assert state.index == expected_danger_component * 25
 
     @pytest.mark.parametrize(
-        "food_fwd, food_lat, expected_food_offset",
+        "food_fwd, food_lat, expected_food_component",
         [
-            (Sign.NEG, Sign.NEG, 0),
-            (Sign.NEG, Sign.ZERO, 1),
-            (Sign.NEG, Sign.POS, 2),
-            (Sign.ZERO, Sign.NEG, 3),
-            (Sign.ZERO, Sign.ZERO, 4),
-            (Sign.ZERO, Sign.POS, 5),
-            (Sign.POS, Sign.NEG, 6),
-            (Sign.POS, Sign.ZERO, 7),
-            (Sign.POS, Sign.POS, 8),
+            (-2, -2, 0),
+            (-2, -1, 1),
+            (-2, 0, 2),
+            (-2, 1, 3),
+            (-2, 2, 4),
+            (-1, -2, 5),
+            (0, -2, 10),
+            (0, 0, 12),
+            (1, 0, 17),
+            (2, 2, 24),
         ],
     )
-    def test_food_signs_offset_index(self, food_fwd, food_lat, expected_food_offset):
+    def test_food_component_offsets_index(
+        self, food_fwd, food_lat, expected_food_component
+    ):
         state = make_state(food_fwd=food_fwd, food_lat=food_lat)
-        assert state.index == expected_food_offset
+        assert state.index == expected_food_component
 
     def test_index_within_bounds_for_all_combinations(self):
         seen = set()
-        for dng_straight in (False, True):
-            for dng_right in (False, True):
-                for dng_left in (False, True):
-                    for food_fwd in Sign:
-                        for food_lat in Sign:
+        for dng_straight in range(N_DANGER_BUCKETS):
+            for dng_right in range(N_DANGER_BUCKETS):
+                for dng_left in range(N_DANGER_BUCKETS):
+                    for food_fwd in range(-2, 3):
+                        for food_lat in range(-2, 3):
                             state = make_state(
                                 dng_straight=dng_straight,
                                 dng_right=dng_right,
@@ -78,14 +89,14 @@ class TestIndex:
         assert len(seen) == SnakeState.N_STATES
 
     def test_n_states_matches_total_combinations(self):
-        assert SnakeState.N_STATES == 8 * 9
+        assert SnakeState.N_STATES == 4**3 * 5**2
 
 
 class TestImmutability:
     def test_is_frozen(self):
         state = make_state()
         with pytest.raises(dataclasses.FrozenInstanceError):
-            state.dng_straight = True
+            state.dng_straight = 1
 
 
 def make_snake(body: list[tuple[int, int]], direction: Direction) -> Snake:
@@ -105,63 +116,124 @@ class TestFromWorldDanger:
             ((5, 0), Direction.UP),
         ],
     )
-    def test_dng_straight_true_at_wall(self, head, direction):
+    def test_dng_straight_bucket_0_at_wall(self, head, direction):
         snake = Snake(head, direction)
         state = SnakeState.from_world(snake, food=(0, 0), grid_size=10)
-        assert state.dng_straight is True
+        assert state.dng_straight == 0
 
-    def test_no_danger_in_open_space(self):
-        snake = Snake((5, 5), Direction.RIGHT)
-        state = SnakeState.from_world(snake, food=(0, 0), grid_size=10)
-        assert state.dng_straight is False
-        assert state.dng_right is False
-        assert state.dng_left is False
-
-    def test_length_one_snake_has_no_self_danger(self):
-        snake = Snake((5, 5), Direction.RIGHT)
-        state = SnakeState.from_world(snake, food=(0, 0), grid_size=10)
-        assert state.dng_straight is False
-        assert state.dng_right is False
-        assert state.dng_left is False
-
-    def test_tail_cell_excluded_from_danger(self):
-        # tail=(5,4), head=(5,5); turning to face UP would step onto the
-        # tail cell, which vacates on a non-growth move -> not dangerous.
-        snake = make_snake([(5, 4), (5, 5)], Direction.RIGHT)
-        state = SnakeState.from_world(snake, food=(0, 0), grid_size=10)
-        assert state.dng_left is False  # RIGHT.turn_left() == UP
-
-    def test_non_tail_body_segment_is_danger(self):
+    def test_non_tail_body_segment_is_bucket_0(self):
         # tail=(5,3), middle=(5,4), head=(5,5), direction RIGHT.
         # Turning left (UP) steps onto (5,4), a non-tail body segment.
         snake = make_snake([(5, 3), (5, 4), (5, 5)], Direction.RIGHT)
         state = SnakeState.from_world(snake, food=(0, 0), grid_size=10)
-        assert state.dng_left is True  # RIGHT.turn_left() == UP -> (5,4)
+        assert state.dng_left == 0  # RIGHT.turn_left() == UP -> (5,4) adjacent
+
+    def test_open_space_is_bucket_3(self):
+        # (10, 10) in a 20-wide grid keeps a 10-cell margin on every side,
+        # well beyond the 6-step scan — (5, 5) is only 5 steps from the
+        # y=0 wall, which would put dng_left in bucket 2, not 3.
+        snake = Snake((10, 10), Direction.RIGHT)
+        state = SnakeState.from_world(snake, food=(0, 0), grid_size=20)
+        assert state.dng_straight == 3
+        assert state.dng_right == 3
+        assert state.dng_left == 3
+
+    @pytest.mark.parametrize(
+        "obstacle_offset, expected_bucket",
+        [
+            (2, 1),  # obstacle 2 steps away -> ray distance=1 -> bucket 1
+            (3, 1),  # obstacle 3 steps away -> ray distance=2 -> bucket 1
+            (4, 2),  # obstacle 4 steps away -> ray distance=3 -> bucket 2
+            (6, 2),  # obstacle 6 steps away -> ray distance=5 -> bucket 2
+        ],
+    )
+    def test_danger_bucket_scales_with_obstacle_distance(
+        self, obstacle_offset, expected_bucket
+    ):
+        head = (5, 5)
+        obstacle = (5 + obstacle_offset, 5)
+        tail = (0, 0)  # far away, irrelevant to this ray
+        snake = make_snake([tail, obstacle, head], Direction.RIGHT)
+        state = SnakeState.from_world(snake, food=(0, 0), grid_size=20)
+        assert state.dng_straight == expected_bucket
+
+    def test_tail_is_passed_through_when_only_obstacle_in_range(self):
+        # tail=(6,5) directly ahead of head=(5,5); nothing else nearby.
+        # The tail vacates on this move, so the ray should pass through it
+        # and report "no danger within range" (bucket 3), not stop at it.
+        snake = make_snake([(6, 5), (5, 5)], Direction.RIGHT)  # tail, head
+        state = SnakeState.from_world(snake, food=(0, 0), grid_size=20)
+        assert state.dng_straight == 3
+
+    def test_ray_continues_past_tail_to_find_obstacle_beyond(self):
+        # tail=(6,5) directly ahead of head, then a non-tail segment further
+        # ahead at (8,5). The ray should skip the vacating tail and report
+        # the distance to the real obstacle beyond it.
+        snake = make_snake([(6, 5), (8, 5), (5, 5)], Direction.RIGHT)  # tail, mid, head
+        state = SnakeState.from_world(snake, food=(0, 0), grid_size=20)
+        assert state.dng_straight == 1
 
 
 @pytest.mark.parametrize("direction", list(Direction))
-class TestFromWorldFoodSigns:
-    def test_food_ahead(self, direction):
+class TestFromWorldFoodBuckets:
+    def test_food_near_ahead(self, direction):
         snake = Snake((5, 5), direction)
-        food = direction.apply(snake.head)
+        head = snake.head
+        food = (head[0] + 3 * direction.dx, head[1] + 3 * direction.dy)
         state = SnakeState.from_world(snake, food=food, grid_size=20)
-        assert (state.food_fwd, state.food_lat) == (Sign.POS, Sign.ZERO)
+        assert (state.food_fwd, state.food_lat) == (1, 0)
 
-    def test_food_behind(self, direction):
+    def test_food_far_ahead(self, direction):
         snake = Snake((5, 5), direction)
+        head = snake.head
+        food = (head[0] + 4 * direction.dx, head[1] + 4 * direction.dy)
+        state = SnakeState.from_world(snake, food=food, grid_size=20)
+        assert (state.food_fwd, state.food_lat) == (2, 0)
+
+    def test_food_near_behind(self, direction):
+        snake = Snake((5, 5), direction)
+        head = snake.head
         behind = direction.turn_right().turn_right()
-        food = behind.apply(snake.head)
+        food = (head[0] + 3 * behind.dx, head[1] + 3 * behind.dy)
         state = SnakeState.from_world(snake, food=food, grid_size=20)
-        assert (state.food_fwd, state.food_lat) == (Sign.NEG, Sign.ZERO)
+        assert (state.food_fwd, state.food_lat) == (-1, 0)
 
-    def test_food_right(self, direction):
+    def test_food_far_behind(self, direction):
         snake = Snake((5, 5), direction)
-        food = direction.turn_right().apply(snake.head)
+        head = snake.head
+        behind = direction.turn_right().turn_right()
+        food = (head[0] + 4 * behind.dx, head[1] + 4 * behind.dy)
         state = SnakeState.from_world(snake, food=food, grid_size=20)
-        assert (state.food_fwd, state.food_lat) == (Sign.ZERO, Sign.POS)
+        assert (state.food_fwd, state.food_lat) == (-2, 0)
 
-    def test_food_left(self, direction):
+    def test_food_near_right(self, direction):
         snake = Snake((5, 5), direction)
-        food = direction.turn_left().apply(snake.head)
+        head = snake.head
+        right = direction.turn_right()
+        food = (head[0] + 3 * right.dx, head[1] + 3 * right.dy)
         state = SnakeState.from_world(snake, food=food, grid_size=20)
-        assert (state.food_fwd, state.food_lat) == (Sign.ZERO, Sign.NEG)
+        assert (state.food_fwd, state.food_lat) == (0, 1)
+
+    def test_food_far_right(self, direction):
+        snake = Snake((5, 5), direction)
+        head = snake.head
+        right = direction.turn_right()
+        food = (head[0] + 4 * right.dx, head[1] + 4 * right.dy)
+        state = SnakeState.from_world(snake, food=food, grid_size=20)
+        assert (state.food_fwd, state.food_lat) == (0, 2)
+
+    def test_food_near_left(self, direction):
+        snake = Snake((5, 5), direction)
+        head = snake.head
+        left = direction.turn_left()
+        food = (head[0] + 3 * left.dx, head[1] + 3 * left.dy)
+        state = SnakeState.from_world(snake, food=food, grid_size=20)
+        assert (state.food_fwd, state.food_lat) == (0, -1)
+
+    def test_food_far_left(self, direction):
+        snake = Snake((5, 5), direction)
+        head = snake.head
+        left = direction.turn_left()
+        food = (head[0] + 4 * left.dx, head[1] + 4 * left.dy)
+        state = SnakeState.from_world(snake, food=food, grid_size=20)
+        assert (state.food_fwd, state.food_lat) == (0, -2)
