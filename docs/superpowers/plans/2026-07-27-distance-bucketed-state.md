@@ -162,7 +162,10 @@ class TestFromWorldDanger:
         assert state.dng_left == 0  # RIGHT.turn_left() == UP -> (5,4) adjacent
 
     def test_open_space_is_bucket_3(self):
-        snake = Snake((5, 5), Direction.RIGHT)
+        # (10, 10) in a 20-wide grid keeps a 10-cell margin on every side,
+        # well beyond the 6-step scan — (5, 5) is only 5 steps from the
+        # y=0 wall, which would put dng_left in bucket 2, not 3.
+        snake = Snake((10, 10), Direction.RIGHT)
         state = SnakeState.from_world(snake, food=(0, 0), grid_size=20)
         assert state.dng_straight == 3
         assert state.dng_right == 3
