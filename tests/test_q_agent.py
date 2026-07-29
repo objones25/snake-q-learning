@@ -1,5 +1,6 @@
-import os
+import inspect
 import tempfile
+from pathlib import Path
 
 import pytest
 
@@ -99,12 +100,16 @@ class TestSaveLoad:
         agent.q_table[2] = [7.0, 8.0, 9.0]
 
         with tempfile.TemporaryDirectory() as tmpdir:
-            path = os.path.join(tmpdir, "q_table.json")
+            path = Path(tmpdir) / "q_table.json"
             agent.save(path)
 
             loaded_agent = QLearningAgent(n_states=3)
             loaded_agent.load(path)
             assert loaded_agent.q_table == agent.q_table
+
+    def test_save_and_load_path_params_are_path_typed(self):
+        assert inspect.signature(QLearningAgent.save).parameters["path"].annotation is Path
+        assert inspect.signature(QLearningAgent.load).parameters["path"].annotation is Path
 
 
 class TestDefaults:

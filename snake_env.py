@@ -20,7 +20,7 @@ class StepResult:
 
 
 class SnakeEnv:
-    def __init__(self, grid_size: int = 12):
+    def __init__(self, grid_size: int = 20):
         self.grid_size = grid_size
         self.snake: Snake
         self.food: tuple[int, int]

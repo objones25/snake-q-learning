@@ -1,5 +1,6 @@
 import json
 import random
+from pathlib import Path
 
 from snake_types import Action
 
@@ -50,10 +51,10 @@ class QLearningAgent:
             target = reward + self.gamma * max(self.q_table[next_index])
         self.q_table[state_index][action] += self.alpha * (target - current)
 
-    def save(self, path: str) -> None:
+    def save(self, path: Path) -> None:
         with open(path, "w") as f:
             json.dump(self.q_table, f)
 
-    def load(self, path: str) -> None:
+    def load(self, path: Path) -> None:
         with open(path) as f:
             self.q_table = json.load(f)

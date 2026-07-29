@@ -96,7 +96,7 @@ class TestImmutability:
     def test_is_frozen(self):
         state = make_state()
         with pytest.raises(dataclasses.FrozenInstanceError):
-            state.dng_straight = 1
+            state.dng_straight = 1  # type: ignore
 
 
 def make_snake(body: list[tuple[int, int]], direction: Direction) -> Snake:

@@ -1,3 +1,4 @@
+import inspect
 import random
 from collections import deque
 
@@ -262,3 +263,8 @@ class TestLifecycle:
             assert reached_done, (
                 f"episode did not reach done within {max_steps_per_episode} steps"
             )
+
+
+class TestDefaults:
+    def test_default_grid_size_is_20(self):
+        assert inspect.signature(SnakeEnv.__init__).parameters["grid_size"].default == 20
