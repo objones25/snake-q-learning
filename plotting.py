@@ -23,7 +23,12 @@ def plot_training_progress(
 def plot_score_distribution(scores: list[int], save_path: Path | None = None) -> None:
     """Plot a histogram of per-episode scores, e.g. from a play run."""
     plt.figure()
-    plt.hist(scores, bins=30)
+    # One bin per integer score. A fixed bin count (e.g. 30) doesn't divide
+    # evenly into an integer score range, so some bins catch more distinct
+    # score values than their neighbors — that shows up as spiky bars even
+    # when the underlying distribution is smooth.
+    bins = range(min(scores), max(scores) + 2)
+    plt.hist(scores, bins=bins)
     plt.xlabel("Score")
     plt.ylabel("Episodes")
     plt.title("Score distribution")
