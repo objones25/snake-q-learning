@@ -1,6 +1,7 @@
-from collections import deque
+from collections.abc import Iterator
 from pathlib import Path
 
+from episode_step import EpisodeStep
 from q_agent import QLearningAgent
 from snake_env import SnakeEnv
 from snake_state import SnakeState
@@ -10,11 +11,9 @@ def train(
     n_episodes: int = 30_000,
     grid_size: int = 20,
     save_path: Path = Path("q_table.json"),
-) -> QLearningAgent:
+) -> Iterator[EpisodeStep]:
     env = SnakeEnv(grid_size=grid_size)
     agent = QLearningAgent(n_states=SnakeState.N_STATES)
-    recent_scores: deque[int] = deque(maxlen=500)
-    top_score = 0
 
     for episode in range(n_episodes):
         agent.set_epsilon_for_episode(episode)
@@ -32,19 +31,11 @@ def train(
                 result.truncated,
             )
             state = result.state
-
-        recent_scores.append(result.info["score"])
-        top_score = max(top_score, result.info["score"])
-        if episode % 500 == 0:
-            avg_score = sum(recent_scores) / len(recent_scores)
-            print(
-                f"episode {episode:6d}  epsilon={agent.epsilon:.3f}  "
-                f"avg_score={avg_score:.2f}  top_score={top_score}"
-            )
+            yield EpisodeStep(episode=episode, result=result, agent=agent)
 
     agent.save(save_path)
-    return agent
 
 
 if __name__ == "__main__":
-    train()
+    for _ in train():
+        pass
