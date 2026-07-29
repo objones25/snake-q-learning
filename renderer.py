@@ -1,5 +1,6 @@
 import pygame
 
+from config import RenderConfig
 from snake_env import Board
 
 BG_COLOR = (0, 0, 0)
@@ -8,11 +9,13 @@ FOOD_COLOR = (200, 0, 0)
 
 
 class PygameRenderer:
-    def __init__(self, grid_size: int, cell_size: int = 24, fps: int = 15):
+    def __init__(self, grid_size: int, config: RenderConfig = RenderConfig()):
         pygame.init()
-        self.cell_size = cell_size
-        self.fps = fps
-        self.screen = pygame.display.set_mode((grid_size * cell_size, grid_size * cell_size))
+        self.cell_size = config.cell_size
+        self.fps = config.fps
+        self.screen = pygame.display.set_mode(
+            (grid_size * self.cell_size, grid_size * self.cell_size)
+        )
         self.clock = pygame.time.Clock()
 
     def draw(self, board: Board, episode: int, score: int) -> bool:
