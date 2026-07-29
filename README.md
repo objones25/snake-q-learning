@@ -48,26 +48,25 @@ saving to a file.
 
 ## Performance
 
-On the default 20x20 grid, running a trained Q-table greedily (`main.py
-play`, `epsilon=0`, no further learning) over 1,000 episodes:
+On the default 20x20 grid, running a Q-table (trained for 100,000 episodes)
+greedily (`main.py play`, `epsilon=0`, no further learning) over 100,000
+episodes:
 
 ```
-$ uv run main.py play --n-episodes 1000
+$ uv run main.py play --n-episodes 100000
 ...
-avg_score=42.27  top_score=78    # trained with the 30,000-episode default
-avg_score=42.01  top_score=87    # trained for 100,000 episodes instead
+avg_score=42.01  top_score=87    # top score over 100,000 episodes
 ```
 
 `score` is the snake's final length — it starts at length 1, so an average
 score of ~42 means roughly 41 food items eaten before dying or hitting the
 starvation timeout. Per-episode scores vary widely (high teens up into the
-70s/80s) since food placement and starting heading are randomized every
-episode, even though the greedy policy itself is deterministic per state.
-Quadrupling the training budget from 30,000 to 100,000 episodes left the
-average essentially unchanged but nudged the observed peak up from 78 to
-87 — more training raises the ceiling slightly without moving the typical
-outcome much. Use `--plot` (see Quick start) to see the full score
-distribution or the training curve behind numbers like these.
+80s) since food placement and starting heading are randomized every
+episode, even though the greedy policy itself is deterministic per state —
+running more play episodes just gives more chances to see an outlier score,
+it doesn't change the underlying policy. Use `--plot` (see Quick start) to
+see the full score distribution or the training curve behind numbers like
+these.
 
 ## Architecture & design decisions
 
