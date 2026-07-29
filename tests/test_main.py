@@ -3,33 +3,30 @@ from pathlib import Path
 import pytest
 
 import main
+from config import AgentConfig, PlayConfig, TrainConfig
 from q_agent import QLearningAgent
 from snake_state import SnakeState
 
 
 class TestTrainDispatch:
     def test_train_subcommand_calls_train_with_defaults(self, monkeypatch):
-        seen_kwargs = {}
+        seen_configs = []
 
-        def fake_train(**kwargs):
-            seen_kwargs.update(kwargs)
+        def fake_train(config):
+            seen_configs.append(config)
             return iter(())
 
         monkeypatch.setattr(main, "train", fake_train)
 
         main.main(["train"])
 
-        assert seen_kwargs == {
-            "n_episodes": 30_000,
-            "grid_size": 20,
-            "save_path": Path("q_table.json"),
-        }
+        assert seen_configs == [TrainConfig()]
 
     def test_train_subcommand_honors_overrides(self, monkeypatch):
-        seen_kwargs = {}
+        seen_configs = []
 
-        def fake_train(**kwargs):
-            seen_kwargs.update(kwargs)
+        def fake_train(config):
+            seen_configs.append(config)
             return iter(())
 
         monkeypatch.setattr(main, "train", fake_train)
@@ -38,36 +35,62 @@ class TestTrainDispatch:
             ["train", "--n-episodes", "500", "--grid-size", "10", "--save-path", "out.json"]
         )
 
-        assert seen_kwargs == {
-            "n_episodes": 500,
-            "grid_size": 10,
-            "save_path": Path("out.json"),
-        }
+        assert seen_configs == [
+            TrainConfig(n_episodes=500, grid_size=10, save_path=Path("out.json"))
+        ]
+
+    def test_train_subcommand_honors_agent_hyperparameter_overrides(self, monkeypatch):
+        seen_configs = []
+
+        def fake_train(config):
+            seen_configs.append(config)
+            return iter(())
+
+        monkeypatch.setattr(main, "train", fake_train)
+
+        main.main(
+            [
+                "train",
+                "--alpha", "0.5",
+                "--gamma", "0.8",
+                "--epsilon-start", "0.9",
+                "--epsilon-end", "0.05",
+                "--epsilon-decay-episodes", "1000",
+            ]
+        )
+
+        assert seen_configs == [
+            TrainConfig(
+                agent=AgentConfig(
+                    alpha=0.5,
+                    gamma=0.8,
+                    epsilon_start=0.9,
+                    epsilon_end=0.05,
+                    epsilon_decay_episodes=1000,
+                )
+            )
+        ]
 
 
 class TestPlayDispatch:
     def test_play_subcommand_calls_play_with_defaults(self, monkeypatch):
-        seen_kwargs = {}
+        seen_configs = []
 
-        def fake_play(**kwargs):
-            seen_kwargs.update(kwargs)
+        def fake_play(config):
+            seen_configs.append(config)
             return iter(())
 
         monkeypatch.setattr(main, "play", fake_play)
 
         main.main(["play"])
 
-        assert seen_kwargs == {
-            "n_episodes": 100,
-            "grid_size": 20,
-            "q_table_path": Path("q_table.json"),
-        }
+        assert seen_configs == [PlayConfig()]
 
     def test_play_subcommand_honors_overrides(self, monkeypatch):
-        seen_kwargs = {}
+        seen_configs = []
 
-        def fake_play(**kwargs):
-            seen_kwargs.update(kwargs)
+        def fake_play(config):
+            seen_configs.append(config)
             return iter(())
 
         monkeypatch.setattr(main, "play", fake_play)
@@ -76,11 +99,9 @@ class TestPlayDispatch:
             ["play", "--n-episodes", "5", "--grid-size", "10", "--q-table-path", "other.json"]
         )
 
-        assert seen_kwargs == {
-            "n_episodes": 5,
-            "grid_size": 10,
-            "q_table_path": Path("other.json"),
-        }
+        assert seen_configs == [
+            PlayConfig(n_episodes=5, grid_size=10, q_table_path=Path("other.json"))
+        ]
 
 
 class TestNoSubcommand:

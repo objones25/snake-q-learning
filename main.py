@@ -2,6 +2,7 @@ import argparse
 from collections import deque
 from pathlib import Path
 
+from config import AgentConfig, PlayConfig, TrainConfig
 from play import play
 from train import train
 
@@ -10,23 +11,33 @@ def _build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="main.py")
     subparsers = parser.add_subparsers(dest="mode", required=True)
 
+    train_defaults = TrainConfig()
+    agent_defaults = train_defaults.agent
     train_parser = subparsers.add_parser("train")
-    train_parser.add_argument("--n-episodes", type=int, default=30_000)
-    train_parser.add_argument("--grid-size", type=int, default=20)
-    train_parser.add_argument("--save-path", type=Path, default=Path("q_table.json"))
+    train_parser.add_argument("--n-episodes", type=int, default=train_defaults.n_episodes)
+    train_parser.add_argument("--grid-size", type=int, default=train_defaults.grid_size)
+    train_parser.add_argument("--save-path", type=Path, default=train_defaults.save_path)
+    train_parser.add_argument("--alpha", type=float, default=agent_defaults.alpha)
+    train_parser.add_argument("--gamma", type=float, default=agent_defaults.gamma)
+    train_parser.add_argument("--epsilon-start", type=float, default=agent_defaults.epsilon_start)
+    train_parser.add_argument("--epsilon-end", type=float, default=agent_defaults.epsilon_end)
+    train_parser.add_argument(
+        "--epsilon-decay-episodes", type=int, default=agent_defaults.epsilon_decay_episodes
+    )
 
+    play_defaults = PlayConfig()
     play_parser = subparsers.add_parser("play")
-    play_parser.add_argument("--n-episodes", type=int, default=100)
-    play_parser.add_argument("--grid-size", type=int, default=20)
-    play_parser.add_argument("--q-table-path", type=Path, default=Path("q_table.json"))
+    play_parser.add_argument("--n-episodes", type=int, default=play_defaults.n_episodes)
+    play_parser.add_argument("--grid-size", type=int, default=play_defaults.grid_size)
+    play_parser.add_argument("--q-table-path", type=Path, default=play_defaults.q_table_path)
 
     return parser
 
 
-def _run_train(n_episodes: int, grid_size: int, save_path: Path) -> None:
+def _run_train(config: TrainConfig) -> None:
     recent_scores: deque[int] = deque(maxlen=500)
     top_score = 0
-    for step in train(n_episodes=n_episodes, grid_size=grid_size, save_path=save_path):
+    for step in train(config):
         if not step.result.done:
             continue
         recent_scores.append(step.result.info["score"])
@@ -39,9 +50,9 @@ def _run_train(n_episodes: int, grid_size: int, save_path: Path) -> None:
             )
 
 
-def _run_play(n_episodes: int, grid_size: int, q_table_path: Path) -> None:
+def _run_play(config: PlayConfig) -> None:
     scores = []
-    for step in play(n_episodes=n_episodes, grid_size=grid_size, q_table_path=q_table_path):
+    for step in play(config):
         if not step.result.done:
             continue
         score = step.result.info["score"]
@@ -57,9 +68,27 @@ def main(argv: list[str] | None = None) -> None:
     args = _build_parser().parse_args(argv)
 
     if args.mode == "train":
-        _run_train(n_episodes=args.n_episodes, grid_size=args.grid_size, save_path=args.save_path)
+        agent_config = AgentConfig(
+            alpha=args.alpha,
+            gamma=args.gamma,
+            epsilon_start=args.epsilon_start,
+            epsilon_end=args.epsilon_end,
+            epsilon_decay_episodes=args.epsilon_decay_episodes,
+        )
+        config = TrainConfig(
+            n_episodes=args.n_episodes,
+            grid_size=args.grid_size,
+            save_path=args.save_path,
+            agent=agent_config,
+        )
+        _run_train(config)
     elif args.mode == "play":
-        _run_play(n_episodes=args.n_episodes, grid_size=args.grid_size, q_table_path=args.q_table_path)
+        config = PlayConfig(
+            n_episodes=args.n_episodes,
+            grid_size=args.grid_size,
+            q_table_path=args.q_table_path,
+        )
+        _run_play(config)
 
 
 if __name__ == "__main__":
