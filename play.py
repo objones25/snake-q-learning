@@ -1,5 +1,7 @@
+from collections.abc import Iterator
 from pathlib import Path
 
+from episode_step import EpisodeStep
 from q_agent import QLearningAgent
 from snake_env import SnakeEnv
 from snake_state import SnakeState
@@ -9,7 +11,7 @@ def play(
     n_episodes: int = 100,
     grid_size: int = 20,
     q_table_path: Path = Path("q_table.json"),
-) -> list[int]:
+) -> Iterator[EpisodeStep]:
     if not q_table_path.exists():
         raise FileNotFoundError(
             f"No q_table found at {q_table_path} — run `main.py train` first"
@@ -20,7 +22,6 @@ def play(
     agent.load(q_table_path)
     agent.epsilon = 0.0
 
-    scores = []
     for episode in range(n_episodes):
         state = env.reset()
         result = None
@@ -28,15 +29,9 @@ def play(
             action = agent.choose_action(state.index)
             result = env.step(action)
             state = result.state
-
-        score = result.info["score"]
-        scores.append(score)
-        print(f"episode {episode:6d}  score={score}")
-
-    avg_score = sum(scores) / len(scores)
-    print(f"avg_score={avg_score:.2f}  top_score={max(scores)}")
-    return scores
+            yield EpisodeStep(episode=episode, result=result, agent=agent)
 
 
 if __name__ == "__main__":
-    play()
+    for _ in play():
+        pass

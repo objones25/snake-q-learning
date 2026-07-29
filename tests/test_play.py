@@ -14,7 +14,7 @@ class TestMissingQTable:
         with tempfile.TemporaryDirectory() as tmpdir:
             missing_path = Path(tmpdir) / "does_not_exist.json"
             with pytest.raises(FileNotFoundError, match=str(missing_path)):
-                play(n_episodes=1, grid_size=8, q_table_path=missing_path)
+                list(play(n_episodes=1, grid_size=8, q_table_path=missing_path))
 
 
 class TestPlay:
@@ -27,8 +27,9 @@ class TestPlay:
     def test_runs_n_episodes_and_returns_a_score_per_episode(self):
         with tempfile.TemporaryDirectory() as tmpdir:
             path = self._make_q_table(tmpdir)
-            scores = play(n_episodes=5, grid_size=8, q_table_path=path)
+            steps = list(play(n_episodes=5, grid_size=8, q_table_path=path))
 
+        scores = [step.result.info["score"] for step in steps if step.result.done]
         assert len(scores) == 5
         assert all(isinstance(score, int) and score >= 1 for score in scores)
 
@@ -44,20 +45,10 @@ class TestPlay:
 
         with tempfile.TemporaryDirectory() as tmpdir:
             path = self._make_q_table(tmpdir)
-            play(n_episodes=1, grid_size=8, q_table_path=path)
+            list(play(n_episodes=1, grid_size=8, q_table_path=path))
 
         assert seen_epsilons
         assert all(epsilon == 0.0 for epsilon in seen_epsilons)
-
-    def test_prints_per_episode_scores_and_summary(self, capsys):
-        with tempfile.TemporaryDirectory() as tmpdir:
-            path = self._make_q_table(tmpdir)
-            play(n_episodes=3, grid_size=8, q_table_path=path)
-
-        captured = capsys.readouterr()
-        assert captured.out.count("episode") == 3
-        assert "avg_score=" in captured.out
-        assert "top_score=" in captured.out
 
 
 class TestDefaults:
