@@ -2,27 +2,19 @@ import json
 import random
 from pathlib import Path
 
+from config import AgentConfig
 from snake_types import Action
 
 
 class QLearningAgent:
-    def __init__(
-        self,
-        n_states: int,
-        n_actions: int = 3,
-        alpha: float = 0.1,
-        gamma: float = 0.9,
-        epsilon_start: float = 1.0,
-        epsilon_end: float = 0.01,
-        epsilon_decay_episodes: int = 5_000,
-    ):
-        self.q_table: list[list[float]] = [[0.0] * n_actions for _ in range(n_states)]
-        self.alpha = alpha
-        self.gamma = gamma
-        self.epsilon_start = epsilon_start
-        self.epsilon_end = epsilon_end
-        self.epsilon_decay_episodes = epsilon_decay_episodes
-        self.epsilon = epsilon_start
+    def __init__(self, n_states: int, config: AgentConfig = AgentConfig()):
+        self.q_table: list[list[float]] = [[0.0] * config.n_actions for _ in range(n_states)]
+        self.alpha = config.alpha
+        self.gamma = config.gamma
+        self.epsilon_start = config.epsilon_start
+        self.epsilon_end = config.epsilon_end
+        self.epsilon_decay_episodes = config.epsilon_decay_episodes
+        self.epsilon = config.epsilon_start
 
     def set_epsilon_for_episode(self, episode: int) -> None:
         fraction = min(episode / self.epsilon_decay_episodes, 1.0)

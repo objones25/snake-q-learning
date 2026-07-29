@@ -4,6 +4,7 @@ from pathlib import Path
 
 import pytest
 
+from config import AgentConfig
 from q_agent import QLearningAgent
 from snake_types import Action
 
@@ -33,28 +34,32 @@ class TestChooseAction:
 class TestSetEpsilonForEpisode:
     def test_epsilon_starts_at_epsilon_start(self):
         agent = QLearningAgent(
-            n_states=5, epsilon_start=1.0, epsilon_end=0.01, epsilon_decay_episodes=100
+            n_states=5,
+            config=AgentConfig(epsilon_start=1.0, epsilon_end=0.01, epsilon_decay_episodes=100),
         )
         agent.set_epsilon_for_episode(0)
         assert agent.epsilon == 1.0
 
     def test_epsilon_reaches_epsilon_end_at_decay_episodes(self):
         agent = QLearningAgent(
-            n_states=5, epsilon_start=1.0, epsilon_end=0.01, epsilon_decay_episodes=100
+            n_states=5,
+            config=AgentConfig(epsilon_start=1.0, epsilon_end=0.01, epsilon_decay_episodes=100),
         )
         agent.set_epsilon_for_episode(100)
         assert agent.epsilon == pytest.approx(0.01)
 
     def test_epsilon_holds_at_epsilon_end_past_decay_episodes(self):
         agent = QLearningAgent(
-            n_states=5, epsilon_start=1.0, epsilon_end=0.01, epsilon_decay_episodes=100
+            n_states=5,
+            config=AgentConfig(epsilon_start=1.0, epsilon_end=0.01, epsilon_decay_episodes=100),
         )
         agent.set_epsilon_for_episode(500)
         assert agent.epsilon == pytest.approx(0.01)
 
     def test_epsilon_is_linear_at_midpoint(self):
         agent = QLearningAgent(
-            n_states=5, epsilon_start=1.0, epsilon_end=0.0, epsilon_decay_episodes=100
+            n_states=5,
+            config=AgentConfig(epsilon_start=1.0, epsilon_end=0.0, epsilon_decay_episodes=100),
         )
         agent.set_epsilon_for_episode(50)
         assert agent.epsilon == pytest.approx(0.5)
@@ -62,7 +67,7 @@ class TestSetEpsilonForEpisode:
 
 class TestUpdate:
     def test_normal_step_bootstraps_with_max_next_q(self):
-        agent = QLearningAgent(n_states=5, alpha=0.5, gamma=0.9)
+        agent = QLearningAgent(n_states=5, config=AgentConfig(alpha=0.5, gamma=0.9))
         agent.q_table[1] = [1.0, 2.0, 0.5]  # max = 2.0
         agent.update(
             state_index=0, action=Action.STRAIGHT, reward=1.0,
@@ -72,7 +77,7 @@ class TestUpdate:
         assert agent.q_table[0][Action.STRAIGHT] == pytest.approx(1.4)
 
     def test_real_death_does_not_bootstrap(self):
-        agent = QLearningAgent(n_states=5, alpha=0.5, gamma=0.9)
+        agent = QLearningAgent(n_states=5, config=AgentConfig(alpha=0.5, gamma=0.9))
         agent.q_table[1] = [100.0, 100.0, 100.0]  # would blow up the target if bootstrapped
         agent.update(
             state_index=0, action=Action.STRAIGHT, reward=-10.0,
@@ -82,7 +87,7 @@ class TestUpdate:
         assert agent.q_table[0][Action.STRAIGHT] == pytest.approx(-5.0)
 
     def test_truncation_bootstraps_like_a_normal_step(self):
-        agent = QLearningAgent(n_states=5, alpha=0.5, gamma=0.9)
+        agent = QLearningAgent(n_states=5, config=AgentConfig(alpha=0.5, gamma=0.9))
         agent.q_table[1] = [1.0, 2.0, 0.5]  # max = 2.0
         agent.update(
             state_index=0, action=Action.STRAIGHT, reward=0.0,
