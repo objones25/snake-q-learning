@@ -14,6 +14,7 @@ Package manager is `uv` (`uv.lock` present, Python `>=3.13` per `.python-version
 uv sync                                    # install deps
 uv run python main.py train                # train with all defaults (30,000 episodes, 20x20 grid)
 uv run python main.py train --n-episodes 5000 --grid-size 10 --save-path other.json
+uv run python main.py train --alpha 0.05 --gamma 0.95 --epsilon-decay-episodes 10000  # override AgentConfig hyperparameters
 uv run python main.py play                 # load q_table.json, play 100 episodes greedily (epsilon=0)
 uv run python main.py play --n-episodes 10 --q-table-path other.json
 
@@ -56,12 +57,14 @@ episode_step.py (EpisodeStep — frozen dataclass wrapping StepResult +
                  EpisodeStep generators and does all the printing)
 ```
 
+A bottom-layer module, `config.py`, sits alongside `snake_types.py` — frozen dataclasses (`AgentConfig`, `RenderConfig`, `TrainConfig`, `PlayConfig`) that any layer imports for its own parameters, replacing what used to be scalar kwargs duplicated across `main.py`/`watch.py`/`train.py`/`play.py`/`q_agent.py`/`renderer.py`. `QLearningAgent` takes an `AgentConfig`, `PygameRenderer` takes a `RenderConfig`, and `train()`/`play()` take a `TrainConfig`/`PlayConfig` (`TrainConfig` itself carries an `AgentConfig`). See `docs/superpowers/specs/2026-07-29-centralized-config-design.md`.
+
 Off to the side, a separate optional branch renders gameplay: `renderer.py` (`PygameRenderer`, knows only about `SnakeEnv`'s `Board`) is driven by `watch.py`, which calls `train()`/`play()` directly and feeds each yielded step's board to the renderer. Neither `main.py` nor `train.py`/`play.py` import pygame or `watch.py`.
 
 - **`Snake`** owns only `body` (deque), `pos_set` (kept in sync with body on every `move`), and `direction`. No grid/food/game-over knowledge.
 - **`SnakeState`** (`snake_state.py`) is a frozen dataclass built via the classmethod `SnakeState.from_world(snake, food, grid_size)`. It doesn't hold a reference to the snake — it's a value snapshot with an `.index` property that maps directly to a row in the Q-table.
 - **`SnakeEnv`** owns the actual game world (`grid_size`, live `Snake`, `food`, `steps_since_food`) and is the only thing that mutates game state. `step(action) -> StepResult` where `StepResult` is a frozen dataclass (`state, reward, done, truncated, info, board`) — this replaced an earlier plain-tuple return specifically to kill fragile positional unpacking (see `docs/superpowers/specs/2026-07-27-q-learning-agent-design.md`). `board: Board` (added later, see `docs/superpowers/specs/2026-07-29-pygame-renderer-design.md`) is a raw-coordinate snapshot (`grid_size`, `snake_body`, `food`) for `watch.py`'s renderer — distinct from `state: SnakeState`, which is a lossy RL encoding that can't reconstruct pixel positions. `SnakeEnv.render_state()` builds it.
-- **`QLearningAgent`** is deliberately decoupled from everything above — it only needs `SnakeState.N_STATES` at construction and thereafter only sees integer state indices and `Action` values. Q-table is a plain `list[list[float]]`, persisted as unversioned JSON (`save`/`load`, path-typed via `pathlib.Path`) with no shape validation against `n_states`/`n_actions`.
+- **`QLearningAgent`** is deliberately decoupled from everything above — it only needs `SnakeState.N_STATES` and an `AgentConfig` (`config.py`) at construction and thereafter only sees integer state indices and `Action` values. Q-table is a plain `list[list[float]]`, persisted as unversioned JSON (`save`/`load`, path-typed via `pathlib.Path`) with no shape validation against `n_states`/`n_actions`.
 - **`play.py`** mirrors `train.py`'s episode loop but forces `agent.epsilon = 0.0` after loading and never calls `agent.update` — pure greedy inference, no learning. It fails fast with a clear `FileNotFoundError` if the Q-table path doesn't exist, rather than surfacing `json.load`'s raw traceback.
 
 `train.py`, `play.py`, and `main.py` never touch `Snake` or grid geometry directly — only `SnakeEnv` and `SnakeState`.
@@ -85,7 +88,7 @@ Off to the side, a separate optional branch renders gameplay: `renderer.py` (`Py
 
 **Collision/tail-exclusion logic is duplicated, not shared**, between `SnakeEnv.step` (excludes tail from the obstacle set _unless_ food was just consumed this move, since then the tail doesn't vacate) and `SnakeState.from_world`'s danger ray-casting (unconditionally excludes the tail). They happen to agree in practice but could drift if one side changes without the other — check both when touching collision or danger-sensing logic.
 
-**Known spec/code discrepancy**: `docs/superpowers/specs/2026-07-27-distance-bucketed-state-design.md` calls for bumping `QLearningAgent.epsilon_decay_episodes` to 100,000 and `train()`'s `n_episodes` to 200,000 to match the 22x larger state space (1600 vs. 72 states). Current code still defaults to `epsilon_decay_episodes=5_000` (`q_agent.py`) and `n_episodes=30_000` (`train.py`) — these were deliberately reverted (see commit `17a4a3e`, "revert training defaults"), and tests assert the smaller values. Don't "fix" these back to the spec's numbers without checking why they were reverted first.
+**Known spec/code discrepancy**: `docs/superpowers/specs/2026-07-27-distance-bucketed-state-design.md` calls for bumping `QLearningAgent.epsilon_decay_episodes` to 100,000 and `train()`'s `n_episodes` to 200,000 to match the 22x larger state space (1600 vs. 72 states). Current code still defaults to `AgentConfig.epsilon_decay_episodes=5_000` and `TrainConfig.n_episodes=30_000` (both in `config.py` — see `docs/superpowers/specs/2026-07-29-centralized-config-design.md`) — these were deliberately reverted (see commit `17a4a3e`, "revert training defaults"), and tests assert the smaller values. Don't "fix" these back to the spec's numbers without checking why they were reverted first.
 
 **`q_table.json` is gitignored** and has no versioning — retraining from scratch is the expected workflow after any state-space or reward change, not migrating an old table.
 
