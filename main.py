@@ -2,7 +2,13 @@ import argparse
 from collections import deque
 from pathlib import Path
 
-from config import AgentConfig, PlayConfig, TrainConfig
+from config import (
+    DEFAULT_PLAY_CONFIG,
+    DEFAULT_TRAIN_CONFIG,
+    AgentConfig,
+    PlayConfig,
+    TrainConfig,
+)
 from play import play
 from train import train
 
@@ -11,7 +17,7 @@ def _build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="main.py")
     subparsers = parser.add_subparsers(dest="mode", required=True)
 
-    train_defaults = TrainConfig()
+    train_defaults = DEFAULT_TRAIN_CONFIG
     agent_defaults = train_defaults.agent
     train_parser = subparsers.add_parser("train")
     train_parser.add_argument("--n-episodes", type=int, default=train_defaults.n_episodes)
@@ -25,7 +31,7 @@ def _build_parser() -> argparse.ArgumentParser:
         "--epsilon-decay-episodes", type=int, default=agent_defaults.epsilon_decay_episodes
     )
 
-    play_defaults = PlayConfig()
+    play_defaults = DEFAULT_PLAY_CONFIG
     play_parser = subparsers.add_parser("play")
     play_parser.add_argument("--n-episodes", type=int, default=play_defaults.n_episodes)
     play_parser.add_argument("--grid-size", type=int, default=play_defaults.grid_size)

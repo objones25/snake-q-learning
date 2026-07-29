@@ -1,13 +1,13 @@
 from collections.abc import Iterator
 
-from config import PlayConfig
+from config import DEFAULT_PLAY_CONFIG, PlayConfig
 from episode_step import EpisodeStep
 from q_agent import QLearningAgent
 from snake_env import SnakeEnv
 from snake_state import SnakeState
 
 
-def play(config: PlayConfig = PlayConfig()) -> Iterator[EpisodeStep]:
+def play(config: PlayConfig = DEFAULT_PLAY_CONFIG) -> Iterator[EpisodeStep]:
     if not config.q_table_path.exists():
         raise FileNotFoundError(
             f"No q_table found at {config.q_table_path} — run `main.py train` first"

@@ -1,6 +1,6 @@
 import pygame
 
-from config import RenderConfig
+from config import DEFAULT_RENDER_CONFIG, RenderConfig
 from snake_env import Board
 
 BG_COLOR = (0, 0, 0)
@@ -9,7 +9,7 @@ FOOD_COLOR = (200, 0, 0)
 
 
 class PygameRenderer:
-    def __init__(self, grid_size: int, config: RenderConfig = RenderConfig()):
+    def __init__(self, grid_size: int, config: RenderConfig = DEFAULT_RENDER_CONFIG):
         pygame.init()
         self.cell_size = config.cell_size
         self.fps = config.fps
@@ -35,7 +35,9 @@ class PygameRenderer:
 
     def _rect(self, cell: tuple[int, int]) -> pygame.Rect:
         x, y = cell
-        return pygame.Rect(x * self.cell_size, y * self.cell_size, self.cell_size, self.cell_size)
+        return pygame.Rect(
+            x * self.cell_size, y * self.cell_size, self.cell_size, self.cell_size
+        )
 
     def close(self) -> None:
         pygame.quit()

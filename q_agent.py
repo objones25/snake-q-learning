@@ -2,12 +2,12 @@ import json
 import random
 from pathlib import Path
 
-from config import AgentConfig
+from config import DEFAULT_AGENT_CONFIG, AgentConfig
 from snake_types import Action
 
 
 class QLearningAgent:
-    def __init__(self, n_states: int, config: AgentConfig = AgentConfig()):
+    def __init__(self, n_states: int, config: AgentConfig = DEFAULT_AGENT_CONFIG):
         self.q_table: list[list[float]] = [[0.0] * config.n_actions for _ in range(n_states)]
         self.alpha = config.alpha
         self.gamma = config.gamma

@@ -1,13 +1,13 @@
 from collections.abc import Iterator
 
-from config import TrainConfig
+from config import DEFAULT_TRAIN_CONFIG, TrainConfig
 from episode_step import EpisodeStep
 from q_agent import QLearningAgent
 from snake_env import SnakeEnv
 from snake_state import SnakeState
 
 
-def train(config: TrainConfig = TrainConfig()) -> Iterator[EpisodeStep]:
+def train(config: TrainConfig = DEFAULT_TRAIN_CONFIG) -> Iterator[EpisodeStep]:
     env = SnakeEnv(grid_size=config.grid_size)
     agent = QLearningAgent(n_states=SnakeState.N_STATES, config=config.agent)
 
