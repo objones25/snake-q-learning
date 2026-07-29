@@ -157,3 +157,8 @@ class TestTrainCommandSavesQTable:
         path = tmp_path / "q_table.json"
         main.main(["train", "--n-episodes", "20", "--grid-size", "8", "--save-path", str(path)])
         assert path.exists()
+
+    def test_train_command_saves_q_table_even_with_zero_episodes(self, tmp_path):
+        path = tmp_path / "q_table.json"
+        main.main(["train", "--n-episodes", "0", "--grid-size", "8", "--save-path", str(path)])
+        assert path.exists()
