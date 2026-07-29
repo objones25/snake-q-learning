@@ -38,6 +38,23 @@ learning). `watch.py` is a separate, entirely optional entry point that
 renders either of those with a pygame window; `pygame` is never a hard
 dependency — headless training and play never import it.
 
+## Performance
+
+On the default 20x20 grid, running a trained Q-table greedily (`main.py
+play`, `epsilon=0`, no further learning) over 1,000 episodes:
+
+```
+$ uv run main.py play --n-episodes 1000
+...
+avg_score=42.27  top_score=78
+```
+
+`score` is the snake's final length — it starts at length 1, so an average
+score of ~42 means roughly 41 food items eaten before dying or hitting the
+starvation timeout. Per-episode scores vary widely (high teens up into the
+70s) since food placement and starting heading are randomized every
+episode, even though the greedy policy itself is deterministic per state.
+
 ## Architecture & design decisions
 
 The module layering is strict, each one only knowing about the layer below
