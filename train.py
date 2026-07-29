@@ -1,21 +1,17 @@
 from collections.abc import Iterator
-from pathlib import Path
 
+from config import TrainConfig
 from episode_step import EpisodeStep
 from q_agent import QLearningAgent
 from snake_env import SnakeEnv
 from snake_state import SnakeState
 
 
-def train(
-    n_episodes: int = 30_000,
-    grid_size: int = 20,
-    save_path: Path = Path("q_table.json"),
-) -> Iterator[EpisodeStep]:
-    env = SnakeEnv(grid_size=grid_size)
-    agent = QLearningAgent(n_states=SnakeState.N_STATES)
+def train(config: TrainConfig = TrainConfig()) -> Iterator[EpisodeStep]:
+    env = SnakeEnv(grid_size=config.grid_size)
+    agent = QLearningAgent(n_states=SnakeState.N_STATES, config=config.agent)
 
-    for episode in range(n_episodes):
+    for episode in range(config.n_episodes):
         agent.set_epsilon_for_episode(episode)
         state = env.reset()
         result = None
@@ -33,7 +29,7 @@ def train(
             state = result.state
             yield EpisodeStep(episode=episode, result=result, agent=agent)
 
-    agent.save(save_path)
+    agent.save(config.save_path)
 
 
 if __name__ == "__main__":
