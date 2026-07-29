@@ -33,6 +33,9 @@ uv sync --extra plot                       # install optional matplotlib depende
 uv run --extra plot python main.py train --plot --plot-path training.png
 uv run --extra plot python main.py play --plot --plot-path scores.png
 
+uv sync --extra api # install optional fastapi/uvicorn dependencies
+uv run --extra api uvicorn api:app --reload # serve /train and /play as SSE streams on :8000
+
 uv run pytest                              # full test suite
 ```
 
@@ -45,6 +48,14 @@ dependency — headless training and play never import it. `--plot` on
 training-score curve, or the score distribution across a play run,
 respectively; omit `--plot-path` to open an interactive window instead of
 saving to a file.
+
+`api.py` is a separate, optional HTTP entry point (`uv sync --extra api`) that
+exposes `train()`/`play()` as Server-Sent Events over `GET /train` and
+`GET /play` — for driving a browser-rendered snake game (e.g. deployed to
+Railway via the included `Procfile`). `/train` streams live training,
+`/play` always plays back the committed `example_q_table.json` (the real
+`q_table.json` is gitignored, so a fresh deployment has nothing else to
+load). Neither endpoint writes to disk.
 
 ## Performance
 

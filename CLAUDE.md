@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What this is
 
-A tabular Q-learning agent that learns to play Snake. `train.py` and `play.py` are generators that run episodes against `SnakeEnv` and yield `EpisodeStep` objects — neither prints anything itself. `main.py` is the CLI that consumes those generators and does the printing: `train` runs episodes and dumps a learned Q-table to `q_table.json`; `play` loads a saved Q-table and runs the agent greedily (`epsilon=0`), with no learning/updates. `watch.py` is a separate, optional entry point that renders either a live training run or a saved agent playing, via `renderer.py`'s `PygameRenderer` — pygame is an optional dependency (`uv sync --extra render`), never required for headless training/play. `main.py`'s `train`/`play` subcommands also take an optional `--plot`/`--plot-path`, rendering via `plotting.py` (matplotlib, another optional dependency — `uv sync --extra plot`) — training progress (rolling avg score) or the play-run score distribution, respectively.
+A tabular Q-learning agent that learns to play Snake. `train.py` and `play.py` are generators that run episodes against `SnakeEnv` and yield `EpisodeStep` objects — neither prints anything itself. `main.py` is the CLI that consumes those generators and does the printing: `train` runs episodes and dumps a learned Q-table to `q_table.json`; `play` loads a saved Q-table and runs the agent greedily (`epsilon=0`), with no learning/updates. `watch.py` is a separate, optional entry point that renders either a live training run or a saved agent playing, via `renderer.py`'s `PygameRenderer` — pygame is an optional dependency (`uv sync --extra render`), never required for headless training/play. `main.py`'s `train`/`play` subcommands also take an optional `--plot`/`--plot-path`, rendering via `plotting.py` (matplotlib, another optional dependency — `uv sync --extra plot`) — training progress (rolling avg score) or the play-run score distribution, respectively. A third optional entry point, `api.py` (FastAPI, `uv sync --extra api`), exposes `train()`/`play()` over HTTP as Server-Sent Events (`GET /train`, `GET /play`) for a browser frontend — deployable to Railway via the included `Procfile`. `train()` itself no longer writes `q_table.json`; that save now happens in `main.py`'s `_run_train` after the generator is exhausted, so `api.py` can stream a training run without touching disk. `/play` always loads the committed `example_q_table.json` rather than the gitignored `q_table.json`, since a fresh deployment has no trained table of its own.
 
 ## Commands
 
@@ -25,6 +25,10 @@ uv run --extra render python watch.py train --render-every 500  # render-every i
 uv sync --extra plot                       # install optional matplotlib dependency
 uv run --extra plot python main.py train --plot --plot-path training.png  # plot rolling avg score over training; omit --plot-path to show interactively
 uv run --extra plot python main.py play --plot --plot-path scores.png     # plot the score distribution across the play run
+
+uv sync --extra api                        # install optional fastapi/uvicorn dependencies
+uv run --extra api uvicorn api:app --reload  # serve /train and /play as SSE streams on :8000
+uv run --extra api pytest tests/test_api.py  # api-specific tests (needs httpx from the api extra)
 
 uv run pytest                              # full test suite
 uv run pytest tests/test_snake_env.py      # one file
