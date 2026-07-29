@@ -104,6 +104,28 @@ class TestPlayDispatch:
         ]
 
 
+class TestPlotFlag:
+    def test_train_plot_defaults_to_false(self):
+        args = main._build_parser().parse_args(["train"])
+        assert args.plot is False
+        assert args.plot_path is None
+
+    def test_play_plot_defaults_to_false(self):
+        args = main._build_parser().parse_args(["play"])
+        assert args.plot is False
+        assert args.plot_path is None
+
+    def test_train_plot_flags_parse(self):
+        args = main._build_parser().parse_args(["train", "--plot", "--plot-path", "out.png"])
+        assert args.plot is True
+        assert args.plot_path == Path("out.png")
+
+    def test_play_plot_flags_parse(self):
+        args = main._build_parser().parse_args(["play", "--plot", "--plot-path", "out.png"])
+        assert args.plot is True
+        assert args.plot_path == Path("out.png")
+
+
 class TestNoSubcommand:
     def test_missing_subcommand_exits_with_usage_error(self):
         with pytest.raises(SystemExit):

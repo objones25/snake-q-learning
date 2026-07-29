@@ -29,6 +29,10 @@ uv sync --extra render                     # install optional pygame dependency
 uv run --extra render python watch.py play --q-table-path q_table.json
 uv run --extra render python watch.py train --render-every 500
 
+uv sync --extra plot                       # install optional matplotlib dependency
+uv run --extra plot python main.py train --plot --plot-path training.png
+uv run --extra plot python main.py play --plot --plot-path scores.png
+
 uv run pytest                              # full test suite
 ```
 
@@ -36,7 +40,11 @@ uv run pytest                              # full test suite
 loads a saved Q-table and runs the agent greedily (`epsilon=0`, no further
 learning). `watch.py` is a separate, entirely optional entry point that
 renders either of those with a pygame window; `pygame` is never a hard
-dependency — headless training and play never import it.
+dependency — headless training and play never import it. `--plot` on
+`train`/`play` works the same way with matplotlib: plots the rolling-average
+training-score curve, or the score distribution across a play run,
+respectively; omit `--plot-path` to open an interactive window instead of
+saving to a file.
 
 ## Performance
 
@@ -46,14 +54,20 @@ play`, `epsilon=0`, no further learning) over 1,000 episodes:
 ```
 $ uv run main.py play --n-episodes 1000
 ...
-avg_score=42.27  top_score=78
+avg_score=42.27  top_score=78    # trained with the 30,000-episode default
+avg_score=42.01  top_score=87    # trained for 100,000 episodes instead
 ```
 
 `score` is the snake's final length — it starts at length 1, so an average
 score of ~42 means roughly 41 food items eaten before dying or hitting the
 starvation timeout. Per-episode scores vary widely (high teens up into the
-70s) since food placement and starting heading are randomized every
+70s/80s) since food placement and starting heading are randomized every
 episode, even though the greedy policy itself is deterministic per state.
+Quadrupling the training budget from 30,000 to 100,000 episodes left the
+average essentially unchanged but nudged the observed peak up from 78 to
+87 — more training raises the ceiling slightly without moving the typical
+outcome much. Use `--plot` (see Quick start) to see the full score
+distribution or the training curve behind numbers like these.
 
 ## Architecture & design decisions
 

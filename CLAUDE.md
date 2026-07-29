@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What this is
 
-A tabular Q-learning agent that learns to play Snake. `train.py` and `play.py` are generators that run episodes against `SnakeEnv` and yield `EpisodeStep` objects — neither prints anything itself. `main.py` is the CLI that consumes those generators and does the printing: `train` runs episodes and dumps a learned Q-table to `q_table.json`; `play` loads a saved Q-table and runs the agent greedily (`epsilon=0`), with no learning/updates. `watch.py` is a separate, optional entry point that renders either a live training run or a saved agent playing, via `renderer.py`'s `PygameRenderer` — pygame is an optional dependency (`uv sync --extra render`), never required for headless training/play.
+A tabular Q-learning agent that learns to play Snake. `train.py` and `play.py` are generators that run episodes against `SnakeEnv` and yield `EpisodeStep` objects — neither prints anything itself. `main.py` is the CLI that consumes those generators and does the printing: `train` runs episodes and dumps a learned Q-table to `q_table.json`; `play` loads a saved Q-table and runs the agent greedily (`epsilon=0`), with no learning/updates. `watch.py` is a separate, optional entry point that renders either a live training run or a saved agent playing, via `renderer.py`'s `PygameRenderer` — pygame is an optional dependency (`uv sync --extra render`), never required for headless training/play. `main.py`'s `train`/`play` subcommands also take an optional `--plot`/`--plot-path`, rendering via `plotting.py` (matplotlib, another optional dependency — `uv sync --extra plot`) — training progress (rolling avg score) or the play-run score distribution, respectively.
 
 ## Commands
 
@@ -21,6 +21,10 @@ uv run python main.py play --n-episodes 10 --q-table-path other.json
 uv sync --extra render                     # install optional pygame dependency
 uv run --extra render python watch.py play --q-table-path q_table.json
 uv run --extra render python watch.py train --render-every 500  # render-every is training-only; play renders every episode
+
+uv sync --extra plot                       # install optional matplotlib dependency
+uv run --extra plot python main.py train --plot --plot-path training.png  # plot rolling avg score over training; omit --plot-path to show interactively
+uv run --extra plot python main.py play --plot --plot-path scores.png     # plot the score distribution across the play run
 
 uv run pytest                              # full test suite
 uv run pytest tests/test_snake_env.py      # one file
@@ -60,6 +64,8 @@ episode_step.py (EpisodeStep — frozen dataclass wrapping StepResult +
 A bottom-layer module, `config.py`, sits alongside `snake_types.py` — frozen dataclasses (`AgentConfig`, `RenderConfig`, `TrainConfig`, `PlayConfig`) that any layer imports for its own parameters, replacing what used to be scalar kwargs duplicated across `main.py`/`watch.py`/`train.py`/`play.py`/`q_agent.py`/`renderer.py`. `QLearningAgent` takes an `AgentConfig`, `PygameRenderer` takes a `RenderConfig`, and `train()`/`play()` take a `TrainConfig`/`PlayConfig` (`TrainConfig` itself carries an `AgentConfig`). See `docs/superpowers/specs/2026-07-29-centralized-config-design.md`.
 
 Off to the side, a separate optional branch renders gameplay: `renderer.py` (`PygameRenderer`, knows only about `SnakeEnv`'s `Board`) is driven by `watch.py`, which calls `train()`/`play()` directly and feeds each yielded step's board to the renderer. Neither `main.py` nor `train.py`/`play.py` import pygame or `watch.py`.
+
+Another optional, off-to-the-side branch plots results: `plotting.py` (`plot_training_progress`, `plot_score_distribution` — matplotlib, `uv sync --extra plot`) is called from `main.py`'s `_run_train`/`_run_play` only when `--plot` is passed, via a *lazy* import inside the `if plot:` branch — this keeps `main.py` itself importable without matplotlib installed, the same way `train.py`/`play.py` stay importable without pygame. `_run_train` reuses the same 500-episode rolling-average checkpoints it already computes for the printed progress line; `_run_play` reuses the same per-episode `scores` list it already prints and averages. Like `renderer.py`, `plotting.py` has no automated test coverage (verified manually with `MPLBACKEND=Agg` instead) — same reasoning: the dependency is optional and the output is visual.
 
 - **`Snake`** owns only `body` (deque), `pos_set` (kept in sync with body on every `move`), and `direction`. No grid/food/game-over knowledge.
 - **`SnakeState`** (`snake_state.py`) is a frozen dataclass built via the classmethod `SnakeState.from_world(snake, food, grid_size)`. It doesn't hold a reference to the snake — it's a value snapshot with an `.index` property that maps directly to a row in the Q-table.
