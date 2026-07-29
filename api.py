@@ -58,7 +58,7 @@ def stream_train(
     gamma: float = 0.9,
     epsilon_start: float = 1.0,
     epsilon_end: float = 0.01,
-    epsilon_decay_episodes: int = 5_000,
+    epsilon_decay_episodes: int = Query(5_000, ge=1),
     render_every: int = Query(1, ge=1),
     fps: float = Query(30.0, gt=0),
 ) -> StreamingResponse:
