@@ -11,12 +11,20 @@ STEP_REWARD = 0
 
 
 @dataclass(frozen=True, slots=True)
+class Board:
+    grid_size: int
+    snake_body: tuple[tuple[int, int], ...]
+    food: tuple[int, int]
+
+
+@dataclass(frozen=True, slots=True)
 class StepResult:
     state: SnakeState
     reward: float
     done: bool
     truncated: bool
     info: dict
+    board: Board
 
 
 class SnakeEnv:
@@ -40,6 +48,13 @@ class SnakeEnv:
     def _place_food(self) -> tuple[int, int]:
         free_cells = list(self._all_cells - self.snake.pos_set)
         return random.choice(free_cells)
+
+    def render_state(self) -> Board:
+        return Board(
+            grid_size=self.grid_size,
+            snake_body=tuple(self.snake.body),
+            food=self.food,
+        )
 
     def step(self, action: Action) -> StepResult:
         """Advance the environment by one action.
@@ -69,7 +84,10 @@ class SnakeEnv:
 
         if collision:
             state = SnakeState.from_world(self.snake, self.food, self.grid_size)
-            return StepResult(state, DEATH_REWARD, True, False, {"score": self.snake.length})
+            return StepResult(
+                state, DEATH_REWARD, True, False,
+                {"score": self.snake.length}, self.render_state(),
+            )
 
         self.snake.move(food_consumed)
 
@@ -83,4 +101,7 @@ class SnakeEnv:
 
         done = self.steps_since_food > 100 * self.snake.length
         state = SnakeState.from_world(self.snake, self.food, self.grid_size)
-        return StepResult(state=state, reward=reward, done=done, truncated=done, info={"score": self.snake.length})
+        return StepResult(
+            state=state, reward=reward, done=done, truncated=done,
+            info={"score": self.snake.length}, board=self.render_state(),
+        )

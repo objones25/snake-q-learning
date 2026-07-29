@@ -199,6 +199,34 @@ class TestStepTruncatedFlag:
         assert result.truncated is False
 
 
+class TestStepBoard:
+    def test_board_reflects_snake_body_and_food_after_normal_step(self):
+        env = SnakeEnv(grid_size=12)
+        env.reset()
+        env.food = (0, 0)
+        result = env.step(Action.STRAIGHT)
+        assert result.board.grid_size == 12
+        assert result.board.snake_body == tuple(env.snake.body)
+        assert result.board.food == env.food
+
+    def test_board_reflects_snake_body_on_collision(self):
+        env = SnakeEnv(grid_size=12)
+        env.reset()
+        env.snake = Snake((11, 5), Direction.RIGHT)
+        env.food = (0, 0)
+        result = env.step(Action.STRAIGHT)
+        assert result.done is True
+        assert result.board.snake_body == tuple(env.snake.body)
+        assert result.board.food == (0, 0)
+
+    def test_render_state_matches_step_board(self):
+        env = SnakeEnv(grid_size=12)
+        env.reset()
+        env.food = (0, 0)
+        result = env.step(Action.STRAIGHT)
+        assert env.render_state() == result.board
+
+
 class TestLifecycle:
     def test_random_policy_episodes_hold_invariants_every_step(self):
         # Realistic reset() -> step() -> ... -> done loop under a random
