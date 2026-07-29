@@ -1,6 +1,6 @@
 from collections.abc import Iterator
 
-from config import AgentConfig, PlayConfig
+from config import PlayConfig
 from episode_step import EpisodeStep
 from q_agent import QLearningAgent
 from snake_env import SnakeEnv
@@ -14,7 +14,7 @@ def play(config: PlayConfig = PlayConfig()) -> Iterator[EpisodeStep]:
         )
 
     env = SnakeEnv(grid_size=config.grid_size)
-    agent = QLearningAgent(n_states=SnakeState.N_STATES, config=AgentConfig())
+    agent = QLearningAgent(n_states=SnakeState.N_STATES)
     agent.load(config.q_table_path)
     agent.epsilon = 0.0
 
