@@ -226,6 +226,16 @@ class TestStepBoard:
         result = env.step(Action.STRAIGHT)
         assert env.render_state() == result.board
 
+    def test_board_is_a_snapshot_not_a_live_view(self):
+        env = SnakeEnv(grid_size=12)
+        env.reset()
+        env.food = (0, 0)
+        first = env.step(Action.STRAIGHT).board
+        body_at_capture = first.snake_body
+        env.step(Action.STRAIGHT)
+        assert first.snake_body == body_at_capture
+        assert first.snake_body != tuple(env.snake.body)
+
 
 class TestLifecycle:
     def test_random_policy_episodes_hold_invariants_every_step(self):

@@ -48,7 +48,7 @@ def _run_play(n_episodes: int, grid_size: int, q_table_path: Path) -> None:
         scores.append(score)
         print(f"episode {step.episode:6d}  score={score}")
 
-    if scores:
+    if scores:  # nothing ran (e.g. --n-episodes 0); avoid dividing by zero
         avg_score = sum(scores) / len(scores)
         print(f"avg_score={avg_score:.2f}  top_score={max(scores)}")
 

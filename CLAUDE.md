@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What this is
 
-A tabular Q-learning agent that learns to play Snake. Still headless — no rendering (a pygame renderer is planned as future work) — but `main.py` now exposes a small CLI. `train.py` runs episodes against `SnakeEnv` and dumps a learned Q-table to `q_table.json`; `play.py` loads a saved Q-table and runs the agent greedily (`epsilon=0`), printing scores with no learning/updates.
+A tabular Q-learning agent that learns to play Snake. `train.py` and `play.py` are generators that run episodes against `SnakeEnv` and yield `EpisodeStep` objects — neither prints anything itself. `main.py` is the CLI that consumes those generators and does the printing: `train` runs episodes and dumps a learned Q-table to `q_table.json`; `play` loads a saved Q-table and runs the agent greedily (`epsilon=0`), with no learning/updates. `watch.py` is a separate, optional entry point that renders either a live training run or a saved agent playing, via `renderer.py`'s `PygameRenderer` — pygame is an optional dependency (`uv sync --extra render`), never required for headless training/play.
 
 ## Commands
 
@@ -16,6 +16,10 @@ uv run python main.py train                # train with all defaults (30,000 epi
 uv run python main.py train --n-episodes 5000 --grid-size 10 --save-path other.json
 uv run python main.py play                 # load q_table.json, play 100 episodes greedily (epsilon=0)
 uv run python main.py play --n-episodes 10 --q-table-path other.json
+
+uv sync --extra render                     # install optional pygame dependency
+uv run --extra render python watch.py play --q-table-path q_table.json
+uv run --extra render python watch.py train --render-every 500  # render-every is training-only; play renders every episode
 
 uv run pytest                              # full test suite
 uv run pytest tests/test_snake_env.py      # one file
@@ -42,11 +46,17 @@ snake_state.py  (SnakeState — discretizes Snake+food into an RL state)
                  works with SnakeState.index ints and Action)
       ↑
 train.py / play.py  (glue: train() runs episodes and learns; play()
-                      loads a saved table and runs greedily, no learning)
+                      loads a saved table and runs greedily, no learning —
+                      both are generators yielding EpisodeStep, no printing)
       ↑
-  main.py       (argparse CLI: `train`/`play` subcommands, dispatches
-                 straight to train() / play() with parsed overrides)
+episode_step.py (EpisodeStep — frozen dataclass wrapping StepResult +
+                 the agent, yielded by both train() and play())
+      ↑
+  main.py       (argparse CLI: `train`/`play` subcommands, consumes the
+                 EpisodeStep generators and does all the printing)
 ```
+
+Off to the side, a separate optional branch renders gameplay: `renderer.py` (`PygameRenderer`, knows only about `SnakeEnv`'s `Board`) is driven by `watch.py`, which calls `train()`/`play()` directly and feeds each yielded step's board to the renderer. Neither `main.py` nor `train.py`/`play.py` import pygame or `watch.py`.
 
 - **`Snake`** owns only `body` (deque), `pos_set` (kept in sync with body on every `move`), and `direction`. No grid/food/game-over knowledge.
 - **`SnakeState`** (`snake_state.py`) is a frozen dataclass built via the classmethod `SnakeState.from_world(snake, food, grid_size)`. It doesn't hold a reference to the snake — it's a value snapshot with an `.index` property that maps directly to a row in the Q-table.
@@ -71,7 +81,7 @@ train.py / play.py  (glue: train() runs episodes and learns; play()
 
 **`grid_size` defaults to 20** (`SnakeEnv.__init__`, `train()`, `play()`) — bumped up from an original 12x12, closer to a classic arcade-size board. This doesn't change `N_STATES` (still 1600 — driven by `MAX_DANGER_SCAN` and food buckets, not grid size), so `n_episodes` defaults were deliberately left alone (see the reverted-defaults note below) even though a bigger board means food/danger are relatively farther away more often.
 
-**`train()`'s periodic log line reports an all-time top score** alongside the rolling `avg_score`: a running `max()` over every episode's `info["score"]` since training started (not windowed like `avg_score`), so it's monotonically non-decreasing across a run.
+**`main.py`'s `_run_train` periodic log line reports an all-time top score** alongside the rolling `avg_score`, reading both off the `EpisodeStep` stream `train()` yields: a running `max()` over every episode's `info["score"]` since training started (not windowed like `avg_score`), so it's monotonically non-decreasing across a run.
 
 **Collision/tail-exclusion logic is duplicated, not shared**, between `SnakeEnv.step` (excludes tail from the obstacle set _unless_ food was just consumed this move, since then the tail doesn't vacate) and `SnakeState.from_world`'s danger ray-casting (unconditionally excludes the tail). They happen to agree in practice but could drift if one side changes without the other — check both when touching collision or danger-sensing logic.
 
