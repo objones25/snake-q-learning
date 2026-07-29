@@ -48,7 +48,9 @@ def _run_train(config: TrainConfig, plot: bool = False, plot_path: Path | None =
     recent_scores: deque[int] = deque(maxlen=500)
     top_score = 0
     checkpoints: list[tuple[int, float]] = []
+    agent = None
     for step in train(config):
+        agent = step.agent
         if not step.result.done:
             continue
         recent_scores.append(step.result.info["score"])
@@ -60,6 +62,9 @@ def _run_train(config: TrainConfig, plot: bool = False, plot_path: Path | None =
                 f"episode {step.episode:6d}  epsilon={step.agent.epsilon:.3f}  "
                 f"avg_score={avg_score:.2f}  top_score={top_score}"
             )
+
+    if agent is not None:
+        agent.save(config.save_path)
 
     if plot and checkpoints:
         from plotting import plot_training_progress

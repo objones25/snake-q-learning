@@ -30,12 +30,6 @@ class TestTrain:
 
         assert agent.epsilon == pytest.approx(0.996238)
 
-    def test_saves_q_table_to_path(self):
-        with tempfile.TemporaryDirectory() as tmpdir:
-            path = Path(tmpdir) / "q_table.json"
-            list(train(TrainConfig(n_episodes=20, grid_size=8, save_path=path)))
-            assert path.exists()
-
     def test_death_is_passed_to_update_as_not_truncated(self, monkeypatch):
         seen = []
         original = QLearningAgent.update

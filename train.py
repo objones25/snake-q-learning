@@ -29,8 +29,6 @@ def train(config: TrainConfig = DEFAULT_TRAIN_CONFIG) -> Iterator[EpisodeStep]:
             state = result.state
             yield EpisodeStep(episode=episode, result=result, agent=agent)
 
-    agent.save(config.save_path)
-
 
 if __name__ == "__main__":
     for _ in train():

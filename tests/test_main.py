@@ -150,3 +150,10 @@ class TestTrainAndPlayPrintProgress:
         assert captured.out.count("episode") == 3
         assert "avg_score=" in captured.out
         assert "top_score=" in captured.out
+
+
+class TestTrainCommandSavesQTable:
+    def test_train_command_saves_q_table_to_path(self, tmp_path):
+        path = tmp_path / "q_table.json"
+        main.main(["train", "--n-episodes", "20", "--grid-size", "8", "--save-path", str(path)])
+        assert path.exists()
