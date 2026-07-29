@@ -60,7 +60,7 @@ Off to the side, a separate optional branch renders gameplay: `renderer.py` (`Py
 
 - **`Snake`** owns only `body` (deque), `pos_set` (kept in sync with body on every `move`), and `direction`. No grid/food/game-over knowledge.
 - **`SnakeState`** (`snake_state.py`) is a frozen dataclass built via the classmethod `SnakeState.from_world(snake, food, grid_size)`. It doesn't hold a reference to the snake — it's a value snapshot with an `.index` property that maps directly to a row in the Q-table.
-- **`SnakeEnv`** owns the actual game world (`grid_size`, live `Snake`, `food`, `steps_since_food`) and is the only thing that mutates game state. `step(action) -> StepResult` where `StepResult` is a frozen dataclass (`state, reward, done, truncated, info`) — this replaced an earlier plain-tuple return specifically to kill fragile positional unpacking (see `docs/superpowers/specs/2026-07-27-q-learning-agent-design.md`).
+- **`SnakeEnv`** owns the actual game world (`grid_size`, live `Snake`, `food`, `steps_since_food`) and is the only thing that mutates game state. `step(action) -> StepResult` where `StepResult` is a frozen dataclass (`state, reward, done, truncated, info, board`) — this replaced an earlier plain-tuple return specifically to kill fragile positional unpacking (see `docs/superpowers/specs/2026-07-27-q-learning-agent-design.md`). `board: Board` (added later, see `docs/superpowers/specs/2026-07-29-pygame-renderer-design.md`) is a raw-coordinate snapshot (`grid_size`, `snake_body`, `food`) for `watch.py`'s renderer — distinct from `state: SnakeState`, which is a lossy RL encoding that can't reconstruct pixel positions. `SnakeEnv.render_state()` builds it.
 - **`QLearningAgent`** is deliberately decoupled from everything above — it only needs `SnakeState.N_STATES` at construction and thereafter only sees integer state indices and `Action` values. Q-table is a plain `list[list[float]]`, persisted as unversioned JSON (`save`/`load`, path-typed via `pathlib.Path`) with no shape validation against `n_states`/`n_actions`.
 - **`play.py`** mirrors `train.py`'s episode loop but forces `agent.epsilon = 0.0` after loading and never calls `agent.update` — pure greedy inference, no learning. It fails fast with a clear `FileNotFoundError` if the Q-table path doesn't exist, rather than surfacing `json.load`'s raw traceback.
 
@@ -89,9 +89,11 @@ Off to the side, a separate optional branch renders gameplay: `renderer.py` (`Py
 
 **`q_table.json` is gitignored** and has no versioning — retraining from scratch is the expected workflow after any state-space or reward change, not migrating an old table.
 
+**`Board.snake_body` is a real copy, not a live reference into `Snake.body`.** `SnakeEnv.render_state()` does `tuple(self.snake.body)` specifically so a yielded `Board` stays frozen even after the next `step()` mutates the snake's deque in place — otherwise every consumer of `train()`/`play()`'s `EpisodeStep` stream (`watch.py` in particular) would silently see the *current* snake instead of the one from the step it was handed. `tests/test_snake_env.py::TestStepBoard::test_board_is_a_snapshot_not_a_live_view` pins this.
+
 ## Design docs
 
-`docs/superpowers/specs/` and `docs/superpowers/plans/` hold spec-then-plan documents (from the "superpowers" spec-driven-development workflow) for each major change: the original env design, the Q-learning agent + `StepResult` refactor, and the distance-bucketed state redesign. Specs are the useful ones for understanding _why_; plans are step-by-step implementation breakdowns of the same work.
+`docs/superpowers/specs/` and `docs/superpowers/plans/` hold spec-then-plan documents (from the "superpowers" spec-driven-development workflow) for each major change: the original env design, the Q-learning agent + `StepResult` refactor, the distance-bucketed state redesign, and the pygame renderer (`Board`/`EpisodeStep`, the `train()`/`play()` generator conversion, `renderer.py`/`watch.py`). Specs are the useful ones for understanding _why_; plans are step-by-step implementation breakdowns of the same work.
 
 ## Testing conventions
 
