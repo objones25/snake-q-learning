@@ -1,8 +1,10 @@
+import json
 from pathlib import Path
 
 import pytest
 
 import main
+import train as train_module
 from config import DEFAULT_AGENT_CONFIG, AgentConfig
 from q_agent import QLearningAgent
 from snake_env import SnakeEnv
@@ -81,6 +83,56 @@ class TestMissingQTable:
         missing_path = tmp_path / "does_not_exist.json"
         with pytest.raises(FileNotFoundError, match=str(missing_path)):
             main.main(["play", "--q-table-path", str(missing_path)])
+
+
+class TestResumeFrom:
+    def test_resume_from_loads_the_existing_q_table_instead_of_starting_fresh(self, tmp_path):
+        resume_path = tmp_path / "resume.json"
+        save_path = tmp_path / "out.json"
+
+        seed_agent = QLearningAgent(n_states=SnakeState.N_STATES)
+        seed_agent.q_table[0] = [7.0, 8.0, 9.0]
+        seed_agent.save(resume_path)
+
+        main.main(
+            [
+                "train",
+                "--n-episodes", "0",
+                "--grid-size", "8",
+                "--save-path", str(save_path),
+                "--resume-from", str(resume_path),
+            ]
+        )
+
+        with open(save_path) as f:
+            saved = json.load(f)
+        assert saved[0] == [7.0, 8.0, 9.0]
+
+
+class TestNoShieldFlag:
+    def test_shield_runs_by_default_and_is_disabled_by_no_shield(self, monkeypatch, tmp_path):
+        calls = []
+        original = train_module.safe_action_mask
+
+        def spy(*args, **kwargs):
+            calls.append(1)
+            return original(*args, **kwargs)
+
+        monkeypatch.setattr(train_module, "safe_action_mask", spy)
+
+        save_path = tmp_path / "out.json"
+        main.main(["train", "--n-episodes", "3", "--grid-size", "8", "--save-path", str(save_path)])
+        assert len(calls) > 0
+
+        calls.clear()
+        save_path2 = tmp_path / "out2.json"
+        main.main(
+            [
+                "train", "--n-episodes", "3", "--grid-size", "8",
+                "--save-path", str(save_path2), "--no-shield",
+            ]
+        )
+        assert calls == []
 
 
 class TestPlotFlag:
