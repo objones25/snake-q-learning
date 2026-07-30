@@ -17,6 +17,7 @@ class TestTrainDispatch:
             return iter(())
 
         monkeypatch.setattr(main, "train", fake_train)
+        monkeypatch.setattr(QLearningAgent, "save", lambda self, path: None)
 
         main.main(["train"])
 
@@ -30,6 +31,7 @@ class TestTrainDispatch:
             return iter(())
 
         monkeypatch.setattr(main, "train", fake_train)
+        monkeypatch.setattr(QLearningAgent, "save", lambda self, path: None)
 
         main.main(
             ["train", "--n-episodes", "500", "--grid-size", "10", "--save-path", "out.json"]
@@ -47,6 +49,7 @@ class TestTrainDispatch:
             return iter(())
 
         monkeypatch.setattr(main, "train", fake_train)
+        monkeypatch.setattr(QLearningAgent, "save", lambda self, path: None)
 
         main.main(
             [
