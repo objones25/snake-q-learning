@@ -13,7 +13,7 @@ from play import play
 from train import train
 
 EXAMPLE_Q_TABLE_PATH = Path(__file__).parent / "example_q_table.json"
-MAX_FRAMES_PER_STREAM = 3000
+MAX_FRAMES_PER_STREAM = 15_000
 SSE_HEADERS = {"Cache-Control": "no-cache", "X-Accel-Buffering": "no"}
 
 app = FastAPI()

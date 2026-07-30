@@ -80,7 +80,7 @@ data: {"episode": 3, "board": {"grid_size": 20, "snake_body": [[10, 10], [10, 11
 | `done`             | bool            | episode ended this step (real death or starvation timeout)              |
 | `epsilon`          | float or `null` | current exploration rate on `/train`; always `null` on `/play`          |
 
-A stream ends when `n_episodes` completes or `3000` frames have been sent,
+A stream ends when `n_episodes` completes or `15000` frames have been sent,
 whichever comes first — that frame cap exists so a single request (e.g. a
 long `/play` run on a well-trained agent) can't hold a connection open or
 grow a response unboundedly.
