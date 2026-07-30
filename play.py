@@ -2,7 +2,6 @@ from collections.abc import Iterator
 
 from episode_step import EpisodeStep
 from q_agent import QLearningAgent
-from safety import safe_action_mask
 from snake_env import SnakeEnv
 
 
@@ -21,11 +20,7 @@ def play(
         state = env.reset()
         result = None
         while result is None or not result.done:
-            mask = None
-            if use_shield:
-                mask = safe_action_mask(
-                    tuple(env.snake.body), env.snake.direction, env.food, env.grid_size
-                )
+            mask = env.safe_action_mask() if use_shield else None
             action = agent.choose_action(state.index, mask)
             result = env.step(action)
             state = result.state

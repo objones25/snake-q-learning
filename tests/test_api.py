@@ -2,10 +2,8 @@ import json
 
 from fastapi.testclient import TestClient
 
-import play as play_module
-import train as train_module
-
 from api import app
+from snake_env import SnakeEnv
 
 client = TestClient(app)
 
@@ -51,13 +49,13 @@ class TestTrainEndpoint:
 
     def test_use_shield_false_is_accepted_and_disables_the_shield(self, monkeypatch):
         calls = []
-        original = train_module.safe_action_mask
+        original = SnakeEnv.safe_action_mask
 
-        def spy(*args, **kwargs):
+        def spy(self):
             calls.append(1)
-            return original(*args, **kwargs)
+            return original(self)
 
-        monkeypatch.setattr(train_module, "safe_action_mask", spy)
+        monkeypatch.setattr(SnakeEnv, "safe_action_mask", spy)
 
         response = client.get(
             "/train",
@@ -93,13 +91,13 @@ class TestPlayEndpoint:
 
     def test_use_shield_false_is_accepted_and_disables_the_shield(self, monkeypatch):
         calls = []
-        original = play_module.safe_action_mask
+        original = SnakeEnv.safe_action_mask
 
-        def spy(*args, **kwargs):
+        def spy(self):
             calls.append(1)
-            return original(*args, **kwargs)
+            return original(self)
 
-        monkeypatch.setattr(play_module, "safe_action_mask", spy)
+        monkeypatch.setattr(SnakeEnv, "safe_action_mask", spy)
 
         response = client.get(
             "/play",

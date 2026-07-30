@@ -4,7 +4,6 @@ from pathlib import Path
 import pytest
 
 import main
-import train as train_module
 from config import DEFAULT_AGENT_CONFIG, AgentConfig
 from q_agent import QLearningAgent
 from snake_env import SnakeEnv
@@ -112,13 +111,13 @@ class TestResumeFrom:
 class TestNoShieldFlag:
     def test_shield_runs_by_default_and_is_disabled_by_no_shield(self, monkeypatch, tmp_path):
         calls = []
-        original = train_module.safe_action_mask
+        original = SnakeEnv.safe_action_mask
 
-        def spy(*args, **kwargs):
+        def spy(self):
             calls.append(1)
-            return original(*args, **kwargs)
+            return original(self)
 
-        monkeypatch.setattr(train_module, "safe_action_mask", spy)
+        monkeypatch.setattr(SnakeEnv, "safe_action_mask", spy)
 
         save_path = tmp_path / "out.json"
         main.main(["train", "--n-episodes", "3", "--grid-size", "8", "--save-path", str(save_path)])

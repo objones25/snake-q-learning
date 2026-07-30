@@ -1,6 +1,7 @@
 import random
 from dataclasses import dataclass
 
+from safety import safe_action_mask
 from snake import Snake
 from snake_state import SnakeState
 from snake_types import Action, Direction
@@ -54,6 +55,18 @@ class SnakeEnv:
             grid_size=self.grid_size,
             snake_body=tuple(self.snake.body),
             food=self.food,
+        )
+
+    def safe_action_mask(self) -> tuple[bool, bool, bool]:
+        """Package up snake/food/grid_size for `safety.safe_action_mask`.
+
+        Mirrors `render_state()`'s pattern: this is the one place that
+        packages up internal state (`self.snake`, `self.food`,
+        `self.grid_size`) for an external consumer, so callers like
+        `train.py`/`play.py` never need to reach into `env.snake` directly.
+        """
+        return safe_action_mask(
+            tuple(self.snake.body), self.snake.direction, self.food, self.grid_size
         )
 
     def step(self, action: Action) -> StepResult:
