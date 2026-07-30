@@ -60,25 +60,34 @@ endpoint reference (params, response format, curl/browser examples).
 
 ## Performance
 
-On the default 20x20 grid, running a Q-table (trained for 100,000 episodes)
-greedily (`main.py play`, `epsilon=0`, no further learning) over 100,000
-episodes:
+On the default 20x20 grid, running a Q-table trained with the flood-fill
+safety shield enabled (`safety.py` — see Architecture below) greedily
+(`main.py play`, `epsilon=0`, no further learning, shield still on since
+`play()` defaults to `use_shield=True`) over 1,000 episodes:
 
 ```
-$ uv run main.py play --n-episodes 100000
+$ uv run main.py play --n-episodes 1000 --q-table-path example_q_table.json
 ...
-avg_score=42.01  top_score=87    # top score over 100,000 episodes
+avg_score=79.00  top_score=123
 ```
 
 `score` is the snake's final length — it starts at length 1, so an average
-score of ~42 means roughly 41 food items eaten before dying or hitting the
-starvation timeout. Per-episode scores vary widely (high teens up into the
-80s) since food placement and starting heading are randomized every
-episode, even though the greedy policy itself is deterministic per state —
-running more play episodes just gives more chances to see an outlier score,
-it doesn't change the underlying policy. Use `--plot` (see Quick start) to
-see the full score distribution or the training curve behind numbers like
+score of ~79 means roughly 78 food items eaten before dying or hitting the
+starvation timeout. Per-episode scores vary widely (30s up into the 120s)
+since food placement and starting heading are randomized every episode,
+even though the greedy policy itself is deterministic per state — running
+more play episodes just gives more chances to see an outlier score, it
+doesn't change the underlying policy. Use `--plot` (see Quick start) to see
+the full score distribution or the training curve behind numbers like
 these.
+
+This is roughly double the ~42 average score an earlier, unshielded agent
+reached — the shield prevents the agent from wasting exploration on moves
+that trap itself, so it learns a meaningfully better policy. A Q-table
+trained with the shield on is calibrated for shielded play: running
+`--no-shield` (or `use_shield=false` on the API) against a shield-trained
+table gives a materially worse policy, not just "the same agent without a
+seatbelt."
 
 ## Architecture & design decisions
 
