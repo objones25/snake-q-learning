@@ -76,11 +76,10 @@ Matches this repo's convention: `Test*` classes, small helper builders
   `SnakeEnv.step`'s own tail-vacate rule — see CLAUDE.md's note on this
   duplicated logic).
 - `TestHasEnoughSpace`: `needed <= 0` is trivially `True`; a boxed region
-  with fewer free cells than `needed` is `False`; confirms the
-  short-circuit behavior is still correct (doesn't need to walk the whole
-  board) via a board where a naive full-flood-fill and the short-circuited
-  answer would agree, checking just correctness (not call-count) unless a
-  precise short-circuit pin turns out to be cheap to write.
+  with fewer free cells than `needed` is `False`; a large open board with
+  a small `needed` returns `True` (correctness only — no call-count or
+  early-exit timing assertions, since that would pin an implementation
+  detail rather than behavior).
 - `TestSafeActionMask`: hand-built boards — wall directly ahead makes that
   action `False`; a one-cell-wide dead-end corridor makes the entering
   action `False` even though the immediate step doesn't collide; a fully
