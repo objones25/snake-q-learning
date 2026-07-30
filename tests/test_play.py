@@ -37,6 +37,41 @@ class TestPlay:
         assert all(epsilon == 0.0 for epsilon in seen_epsilons)
 
 
+class TestUseShieldWiring:
+    def test_shield_enabled_passes_a_mask_to_choose_action(self, monkeypatch):
+        seen_masks = []
+        original = QLearningAgent.choose_action
+
+        def spy(self, state_index, mask=None):
+            seen_masks.append(mask)
+            return original(self, state_index, mask)
+
+        monkeypatch.setattr(QLearningAgent, "choose_action", spy)
+        env = SnakeEnv(grid_size=8)
+        agent = QLearningAgent(n_states=SnakeState.N_STATES)
+        agent.epsilon = 0.0
+        list(play(env, agent, 3, use_shield=True))
+
+        assert any(mask is not None for mask in seen_masks)
+
+    def test_shield_disabled_never_passes_a_mask(self, monkeypatch):
+        seen_masks = []
+        original = QLearningAgent.choose_action
+
+        def spy(self, state_index, mask=None):
+            seen_masks.append(mask)
+            return original(self, state_index, mask)
+
+        monkeypatch.setattr(QLearningAgent, "choose_action", spy)
+        env = SnakeEnv(grid_size=8)
+        agent = QLearningAgent(n_states=SnakeState.N_STATES)
+        agent.epsilon = 0.0
+        list(play(env, agent, 3, use_shield=False))
+
+        assert seen_masks
+        assert all(mask is None for mask in seen_masks)
+
+
 class TestDefaults:
     def test_default_n_episodes_is_100(self):
         assert PlayConfig().n_episodes == 100
