@@ -2,6 +2,9 @@ import json
 
 from fastapi.testclient import TestClient
 
+import play as play_module
+import train as train_module
+
 from api import app
 
 client = TestClient(app)
@@ -46,6 +49,24 @@ class TestTrainEndpoint:
         response = client.get("/train", params={"epsilon_decay_episodes": 0})
         assert response.status_code == 422
 
+    def test_use_shield_false_is_accepted_and_disables_the_shield(self, monkeypatch):
+        calls = []
+        original = train_module.safe_action_mask
+
+        def spy(*args, **kwargs):
+            calls.append(1)
+            return original(*args, **kwargs)
+
+        monkeypatch.setattr(train_module, "safe_action_mask", spy)
+
+        response = client.get(
+            "/train",
+            params={"n_episodes": 1, "grid_size": 8, "fps": 120, "use_shield": False},
+        )
+
+        assert response.status_code == 200
+        assert calls == []
+
 
 class TestPlayEndpoint:
     def test_streams_sse_frames_with_null_epsilon(self):
@@ -69,3 +90,21 @@ class TestPlayEndpoint:
     def test_grid_size_out_of_range_is_rejected(self):
         response = client.get("/play", params={"grid_size": 41})
         assert response.status_code == 422
+
+    def test_use_shield_false_is_accepted_and_disables_the_shield(self, monkeypatch):
+        calls = []
+        original = play_module.safe_action_mask
+
+        def spy(*args, **kwargs):
+            calls.append(1)
+            return original(*args, **kwargs)
+
+        monkeypatch.setattr(play_module, "safe_action_mask", spy)
+
+        response = client.get(
+            "/play",
+            params={"n_episodes": 1, "grid_size": 8, "fps": 120, "use_shield": False},
+        )
+
+        assert response.status_code == 200
+        assert calls == []
