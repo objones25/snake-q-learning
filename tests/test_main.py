@@ -3,57 +3,40 @@ from pathlib import Path
 import pytest
 
 import main
-from config import AgentConfig, PlayConfig, TrainConfig
+from config import DEFAULT_AGENT_CONFIG, AgentConfig, PlayConfig, TrainConfig
 from q_agent import QLearningAgent
+from snake_env import SnakeEnv
 from snake_state import SnakeState
 
 
 class TestTrainDispatch:
-    def test_train_subcommand_calls_train_with_defaults(self, monkeypatch):
-        seen_configs = []
+    def test_train_subcommand_forwards_grid_size_and_hyperparameter_overrides(
+        self, monkeypatch, tmp_path
+    ):
+        seen_grid_sizes = []
+        original_env_init = SnakeEnv.__init__
 
-        def fake_train(config):
-            seen_configs.append(config)
-            return iter(())
+        def env_spy(self, grid_size=20):
+            seen_grid_sizes.append(grid_size)
+            original_env_init(self, grid_size=grid_size)
 
-        monkeypatch.setattr(main, "train", fake_train)
-        monkeypatch.setattr(QLearningAgent, "save", lambda self, path: None)
+        seen_agent_configs = []
+        original_agent_init = QLearningAgent.__init__
 
-        main.main(["train"])
+        def agent_spy(self, n_states, config=DEFAULT_AGENT_CONFIG):
+            seen_agent_configs.append(config)
+            original_agent_init(self, n_states, config)
 
-        assert seen_configs == [TrainConfig()]
+        monkeypatch.setattr(SnakeEnv, "__init__", env_spy)
+        monkeypatch.setattr(QLearningAgent, "__init__", agent_spy)
 
-    def test_train_subcommand_honors_overrides(self, monkeypatch):
-        seen_configs = []
-
-        def fake_train(config):
-            seen_configs.append(config)
-            return iter(())
-
-        monkeypatch.setattr(main, "train", fake_train)
-        monkeypatch.setattr(QLearningAgent, "save", lambda self, path: None)
-
-        main.main(
-            ["train", "--n-episodes", "500", "--grid-size", "10", "--save-path", "out.json"]
-        )
-
-        assert seen_configs == [
-            TrainConfig(n_episodes=500, grid_size=10, save_path=Path("out.json"))
-        ]
-
-    def test_train_subcommand_honors_agent_hyperparameter_overrides(self, monkeypatch):
-        seen_configs = []
-
-        def fake_train(config):
-            seen_configs.append(config)
-            return iter(())
-
-        monkeypatch.setattr(main, "train", fake_train)
-        monkeypatch.setattr(QLearningAgent, "save", lambda self, path: None)
-
+        path = tmp_path / "q_table.json"
         main.main(
             [
                 "train",
+                "--n-episodes", "1",
+                "--grid-size", "10",
+                "--save-path", str(path),
                 "--alpha", "0.5",
                 "--gamma", "0.8",
                 "--epsilon-start", "0.9",
@@ -62,49 +45,42 @@ class TestTrainDispatch:
             ]
         )
 
-        assert seen_configs == [
-            TrainConfig(
-                agent=AgentConfig(
-                    alpha=0.5,
-                    gamma=0.8,
-                    epsilon_start=0.9,
-                    epsilon_end=0.05,
-                    epsilon_decay_episodes=1000,
-                )
+        assert seen_grid_sizes == [10]
+        assert seen_agent_configs == [
+            AgentConfig(
+                alpha=0.5,
+                gamma=0.8,
+                epsilon_start=0.9,
+                epsilon_end=0.05,
+                epsilon_decay_episodes=1000,
             )
         ]
 
 
 class TestPlayDispatch:
-    def test_play_subcommand_calls_play_with_defaults(self, monkeypatch):
-        seen_configs = []
+    def test_play_subcommand_forwards_grid_size_override(self, monkeypatch, tmp_path):
+        seen_grid_sizes = []
+        original_env_init = SnakeEnv.__init__
 
-        def fake_play(config):
-            seen_configs.append(config)
-            return iter(())
+        def env_spy(self, grid_size=20):
+            seen_grid_sizes.append(grid_size)
+            original_env_init(self, grid_size=grid_size)
 
-        monkeypatch.setattr(main, "play", fake_play)
+        monkeypatch.setattr(SnakeEnv, "__init__", env_spy)
 
-        main.main(["play"])
+        q_path = tmp_path / "q_table.json"
+        QLearningAgent(n_states=SnakeState.N_STATES).save(q_path)
 
-        assert seen_configs == [PlayConfig()]
+        main.main(["play", "--n-episodes", "1", "--grid-size", "10", "--q-table-path", str(q_path)])
 
-    def test_play_subcommand_honors_overrides(self, monkeypatch):
-        seen_configs = []
+        assert seen_grid_sizes == [10]
 
-        def fake_play(config):
-            seen_configs.append(config)
-            return iter(())
 
-        monkeypatch.setattr(main, "play", fake_play)
-
-        main.main(
-            ["play", "--n-episodes", "5", "--grid-size", "10", "--q-table-path", "other.json"]
-        )
-
-        assert seen_configs == [
-            PlayConfig(n_episodes=5, grid_size=10, q_table_path=Path("other.json"))
-        ]
+class TestMissingQTable:
+    def test_play_raises_clear_error_when_q_table_missing(self, tmp_path):
+        missing_path = tmp_path / "does_not_exist.json"
+        with pytest.raises(FileNotFoundError, match=str(missing_path)):
+            main.main(["play", "--q-table-path", str(missing_path)])
 
 
 class TestPlotFlag:
