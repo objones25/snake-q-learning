@@ -55,7 +55,8 @@ exposes `train()`/`play()` as Server-Sent Events over `GET /train` and
 Railway via the included `Procfile`). `/train` streams live training,
 `/play` always plays back the committed `example_q_table.json` (the real
 `q_table.json` is gitignored, so a fresh deployment has nothing else to
-load). Neither endpoint writes to disk.
+load). Neither endpoint writes to disk. See [API.md](API.md) for the full
+endpoint reference (params, response format, curl/browser examples).
 
 ## Performance
 
