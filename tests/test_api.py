@@ -21,7 +21,7 @@ def _parse_sse_frames(body: str) -> list[dict]:
 class TestTrainEndpoint:
     def test_streams_sse_frames_with_expected_keys(self):
         response = client.get(
-            "/train", params={"n_episodes": 1, "grid_size": 8, "fps": 1000}
+            "/train", params={"n_episodes": 1, "grid_size": 8, "fps": 120}
         )
 
         assert response.status_code == 200
@@ -42,11 +42,15 @@ class TestTrainEndpoint:
         response = client.get("/train", params={"grid_size": 4})
         assert response.status_code == 422
 
+    def test_epsilon_decay_episodes_zero_is_rejected(self):
+        response = client.get("/train", params={"epsilon_decay_episodes": 0})
+        assert response.status_code == 422
+
 
 class TestPlayEndpoint:
     def test_streams_sse_frames_with_null_epsilon(self):
         response = client.get(
-            "/play", params={"n_episodes": 1, "grid_size": 8, "fps": 1000}
+            "/play", params={"n_episodes": 1, "grid_size": 8, "fps": 120}
         )
 
         assert response.status_code == 200

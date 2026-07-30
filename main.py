@@ -50,7 +50,7 @@ def _run_train(config: TrainConfig, plot: bool = False, plot_path: Path | None =
     recent_scores: deque[int] = deque(maxlen=500)
     top_score = 0
     checkpoints: list[tuple[int, float]] = []
-    agent: QLearningAgent = QLearningAgent(n_states=SnakeState.N_STATES, config=config.agent)
+    agent: QLearningAgent | None = None
     for step in train(config):
         agent = step.agent
         if not step.result.done:
@@ -65,6 +65,8 @@ def _run_train(config: TrainConfig, plot: bool = False, plot_path: Path | None =
                 f"avg_score={avg_score:.2f}  top_score={top_score}"
             )
 
+    if agent is None:
+        agent = QLearningAgent(n_states=SnakeState.N_STATES, config=config.agent)
     agent.save(config.save_path)
 
     if plot and checkpoints:

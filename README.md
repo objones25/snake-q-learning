@@ -33,8 +33,8 @@ uv sync --extra plot                       # install optional matplotlib depende
 uv run --extra plot python main.py train --plot --plot-path training.png
 uv run --extra plot python main.py play --plot --plot-path scores.png
 
-uv sync --extra api # install optional fastapi/uvicorn dependencies
-uv run --extra api uvicorn api:app --reload # serve /train and /play as SSE streams on :8000
+uv sync --extra api                        # install optional fastapi/uvicorn dependencies
+uv run --extra api uvicorn api:app --reload# serve /train and /play as SSE streams on :8000
 
 uv run pytest                              # full test suite
 ```
