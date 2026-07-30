@@ -76,6 +76,28 @@ class TestPlayDispatch:
 
         assert seen_grid_sizes == [10]
 
+    def test_play_forces_epsilon_to_zero_before_running(self, monkeypatch, tmp_path):
+        # _run_play sets agent.epsilon = 0.0 after loading — this is the only
+        # place that enforces "play is greedy" for the main.py CLI entry
+        # point, so pin it directly rather than relying on play()'s own
+        # tests (which no longer force epsilon themselves; the caller does).
+        seen_epsilons = []
+        original = QLearningAgent.choose_action
+
+        def spy(self, state_index, mask=None):
+            seen_epsilons.append(self.epsilon)
+            return original(self, state_index, mask)
+
+        monkeypatch.setattr(QLearningAgent, "choose_action", spy)
+
+        q_path = tmp_path / "q_table.json"
+        QLearningAgent(n_states=SnakeState.N_STATES).save(q_path)
+
+        main.main(["play", "--n-episodes", "3", "--grid-size", "8", "--q-table-path", str(q_path)])
+
+        assert seen_epsilons
+        assert all(epsilon == 0.0 for epsilon in seen_epsilons)
+
 
 class TestMissingQTable:
     def test_play_raises_clear_error_when_q_table_missing(self, tmp_path):

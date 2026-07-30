@@ -3,6 +3,7 @@ import json
 from fastapi.testclient import TestClient
 
 from api import app
+from q_agent import QLearningAgent
 from snake_env import SnakeEnv
 
 client = TestClient(app)
@@ -106,3 +107,24 @@ class TestPlayEndpoint:
 
         assert response.status_code == 200
         assert calls == []
+
+    def test_play_forces_epsilon_to_zero_during_the_stream(self, monkeypatch):
+        # _stream_play sets agent.epsilon = 0.0 after loading — pin that
+        # directly, since play()'s own tests no longer force epsilon
+        # themselves (the caller does, and _stream_play is one such caller).
+        seen_epsilons = []
+        original = QLearningAgent.choose_action
+
+        def spy(self, state_index, mask=None):
+            seen_epsilons.append(self.epsilon)
+            return original(self, state_index, mask)
+
+        monkeypatch.setattr(QLearningAgent, "choose_action", spy)
+
+        response = client.get(
+            "/play", params={"n_episodes": 1, "grid_size": 8, "fps": 120}
+        )
+
+        assert response.status_code == 200
+        assert seen_epsilons
+        assert all(epsilon == 0.0 for epsilon in seen_epsilons)

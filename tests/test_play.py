@@ -18,7 +18,11 @@ class TestPlay:
         assert len(scores) == 5
         assert all(isinstance(score, int) and score >= 1 for score in scores)
 
-    def test_forces_epsilon_to_zero(self, monkeypatch):
+    def test_does_not_modify_the_callers_epsilon(self, monkeypatch):
+        # play() no longer forces epsilon to zero itself — that's the
+        # caller's job (main.py/watch.py/api.py, before calling play()).
+        # This pins that play() never calls anything that would change
+        # epsilon out from under the caller.
         seen_epsilons = []
         original = QLearningAgent.choose_action
 
