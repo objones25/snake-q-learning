@@ -1,33 +1,32 @@
 from collections.abc import Iterator
 
-from config import DEFAULT_PLAY_CONFIG, PlayConfig
 from episode_step import EpisodeStep
 from q_agent import QLearningAgent
+from safety import safe_action_mask
 from snake_env import SnakeEnv
-from snake_state import SnakeState
 
 
-def play(config: PlayConfig = DEFAULT_PLAY_CONFIG) -> Iterator[EpisodeStep]:
-    if not config.q_table_path.exists():
-        raise FileNotFoundError(
-            f"No q_table found at {config.q_table_path} — run `main.py train` first"
-        )
+def play(
+    env: SnakeEnv,
+    agent: QLearningAgent,
+    n_episodes: int,
+    use_shield: bool = True,
+) -> Iterator[EpisodeStep]:
+    """Run the play loop against an already-constructed env and agent.
 
-    env = SnakeEnv(grid_size=config.grid_size)
-    agent = QLearningAgent(n_states=SnakeState.N_STATES)
-    agent.load(config.q_table_path)
-    agent.epsilon = 0.0
-
-    for episode in range(config.n_episodes):
+    Callers own construction — loading the q_table, setting epsilon=0, and
+    checking the file exists all happen before this is called.
+    """
+    for episode in range(n_episodes):
         state = env.reset()
         result = None
         while result is None or not result.done:
-            action = agent.choose_action(state.index)
+            mask = None
+            if use_shield:
+                mask = safe_action_mask(
+                    tuple(env.snake.body), env.snake.direction, env.food, env.grid_size
+                )
+            action = agent.choose_action(state.index, mask)
             result = env.step(action)
             state = result.state
             yield EpisodeStep(episode=episode, result=result, agent=agent)
-
-
-if __name__ == "__main__":
-    for _ in play():
-        pass

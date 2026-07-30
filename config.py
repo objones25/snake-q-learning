@@ -30,6 +30,9 @@ class TrainConfig:
     grid_size: int = 20
     save_path: Path = Path("q_table.json")
     agent: AgentConfig = field(default_factory=AgentConfig)
+    use_shield: bool = True
+    plot: bool = False
+    plot_path: Path | None = None
 
 
 DEFAULT_TRAIN_CONFIG = TrainConfig()
@@ -40,6 +43,9 @@ class PlayConfig:
     n_episodes: int = 100
     grid_size: int = 20
     q_table_path: Path = Path("q_table.json")
+    use_shield: bool = True
+    plot: bool = False
+    plot_path: Path | None = None
 
 
 DEFAULT_PLAY_CONFIG = PlayConfig()
