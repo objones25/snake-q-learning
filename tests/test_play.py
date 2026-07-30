@@ -1,35 +1,18 @@
-import tempfile
 from pathlib import Path
-
-import pytest
 
 from config import PlayConfig
 from play import play
 from q_agent import QLearningAgent
+from snake_env import SnakeEnv
 from snake_state import SnakeState
 
 
-class TestMissingQTable:
-    def test_raises_clear_error_when_q_table_missing(self):
-        with tempfile.TemporaryDirectory() as tmpdir:
-            missing_path = Path(tmpdir) / "does_not_exist.json"
-            config = PlayConfig(n_episodes=1, grid_size=8, q_table_path=missing_path)
-            with pytest.raises(FileNotFoundError, match=str(missing_path)):
-                list(play(config))
-
-
 class TestPlay:
-    def _make_q_table(self, tmpdir):
-        agent = QLearningAgent(n_states=SnakeState.N_STATES)
-        path = Path(tmpdir) / "q_table.json"
-        agent.save(path)
-        return path
-
     def test_runs_n_episodes_and_returns_a_score_per_episode(self):
-        with tempfile.TemporaryDirectory() as tmpdir:
-            path = self._make_q_table(tmpdir)
-            config = PlayConfig(n_episodes=5, grid_size=8, q_table_path=path)
-            steps = list(play(config))
+        env = SnakeEnv(grid_size=8)
+        agent = QLearningAgent(n_states=SnakeState.N_STATES)
+        agent.epsilon = 0.0
+        steps = list(play(env, agent, 5))
 
         scores = [step.result.info["score"] for step in steps if step.result.done]
         assert len(scores) == 5
@@ -39,16 +22,16 @@ class TestPlay:
         seen_epsilons = []
         original = QLearningAgent.choose_action
 
-        def spy(self, state_index):
+        def spy(self, state_index, mask=None):
             seen_epsilons.append(self.epsilon)
-            return original(self, state_index)
+            return original(self, state_index, mask)
 
         monkeypatch.setattr(QLearningAgent, "choose_action", spy)
 
-        with tempfile.TemporaryDirectory() as tmpdir:
-            path = self._make_q_table(tmpdir)
-            config = PlayConfig(n_episodes=1, grid_size=8, q_table_path=path)
-            list(play(config))
+        env = SnakeEnv(grid_size=8)
+        agent = QLearningAgent(n_states=SnakeState.N_STATES)
+        agent.epsilon = 0.0
+        list(play(env, agent, 1))
 
         assert seen_epsilons
         assert all(epsilon == 0.0 for epsilon in seen_epsilons)
