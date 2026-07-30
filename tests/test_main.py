@@ -3,7 +3,7 @@ from pathlib import Path
 import pytest
 
 import main
-from config import DEFAULT_AGENT_CONFIG, AgentConfig, PlayConfig, TrainConfig
+from config import DEFAULT_AGENT_CONFIG, AgentConfig
 from q_agent import QLearningAgent
 from snake_env import SnakeEnv
 from snake_state import SnakeState
