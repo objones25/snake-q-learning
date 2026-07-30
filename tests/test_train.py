@@ -1,3 +1,4 @@
+import random
 from pathlib import Path
 
 import pytest
@@ -42,6 +43,61 @@ class TestTrain:
         list(train(env, agent, 20))
 
         assert (True, False) in seen
+
+
+class TestUseShieldWiring:
+    def test_shield_enabled_passes_a_mask_to_choose_action(self, monkeypatch):
+        seen_masks = []
+        original = QLearningAgent.choose_action
+
+        def spy(self, state_index, mask=None):
+            seen_masks.append(mask)
+            return original(self, state_index, mask)
+
+        monkeypatch.setattr(QLearningAgent, "choose_action", spy)
+        env = SnakeEnv(grid_size=8)
+        agent = QLearningAgent(n_states=SnakeState.N_STATES)
+        list(train(env, agent, 5, use_shield=True))
+
+        assert any(mask is not None for mask in seen_masks)
+
+    def test_shield_disabled_never_passes_a_mask(self, monkeypatch):
+        seen_masks = []
+        original = QLearningAgent.choose_action
+
+        def spy(self, state_index, mask=None):
+            seen_masks.append(mask)
+            return original(self, state_index, mask)
+
+        monkeypatch.setattr(QLearningAgent, "choose_action", spy)
+        env = SnakeEnv(grid_size=8)
+        agent = QLearningAgent(n_states=SnakeState.N_STATES)
+        list(train(env, agent, 5, use_shield=False))
+
+        assert seen_masks
+        assert all(mask is None for mask in seen_masks)
+
+
+class TestShieldSoak:
+    def test_shielded_training_holds_invariants_every_step(self):
+        # Mirrors test_snake_env.py::TestLifecycle's 500-episode soak test,
+        # but exercises the shield wired into train()'s loop rather than a
+        # bare env under a random policy.
+        grid_size = 8
+        num_episodes = 150
+        random.seed(2)
+
+        env = SnakeEnv(grid_size=grid_size)
+        agent = QLearningAgent(n_states=SnakeState.N_STATES)
+
+        for step in train(env, agent, num_episodes, use_shield=True):
+            body = env.snake.body
+            assert set(body) == env.snake.pos_set
+            assert len(body) == len(set(body))
+            for x, y in body:
+                assert 0 <= x < grid_size
+                assert 0 <= y < grid_size
+            assert 0 <= step.result.state.index < SnakeState.N_STATES
 
 
 class TestDefaults:
