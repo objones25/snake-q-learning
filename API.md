@@ -44,6 +44,7 @@ improves over the course of the stream.
 | `epsilon_decay_episodes` | int   | `5000`  | `≥1`        | episodes over which epsilon decays from start to end |
 | `render_every`           | int   | `1`     | `≥1`        | only stream every Nth episode (skip the rest)        |
 | `fps`                    | float | `30.0`  | `1`–`120`   | frames streamed per second                           |
+| `use_shield`             | bool  | `true`  |             | flood-fill safety shield restricting action selection |
 
 ## `GET /play`
 
@@ -55,6 +56,7 @@ Streams a greedy playthrough (`epsilon=0`, no learning) using the committed
 | `n_episodes` | int   | `10`    | `1`–`100` |                            |
 | `grid_size`  | int   | `20`    | `8`–`40`  |                            |
 | `fps`        | float | `10.0`  | `1`–`120` | frames streamed per second |
+| `use_shield` | bool  | `true`  |           | flood-fill safety shield restricting action selection |
 
 Returns `503` if the Q-table file is missing (a misconfigured deployment) —
 checked before the stream starts, so a client never sees a `200` with a

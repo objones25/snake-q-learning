@@ -243,9 +243,14 @@ class EpisodeStep:
     agent: QLearningAgent
 ```
 
-`play()` mirrors `train()`'s loop almost exactly, but forces
-`agent.epsilon = 0.0` immediately after loading a saved Q-table and never
-calls `agent.update` — pure greedy inference, no learning happening at all.
+`play()` mirrors `train()`'s loop almost exactly, but never calls
+`agent.update` — pure greedy inference, no learning happening at all.
+Forcing `epsilon = 0.0` isn't `play()`'s own job anymore, either: both
+`train()` and `play()` now take an already-constructed `env`/`agent`
+rather than building or loading either themselves (see the config section
+below), so each caller — `main.py`'s `_run_play`, `watch.py`'s
+`watch_play`, `api.py`'s `_stream_play` — loads the Q-table and sets
+`agent.epsilon = 0.0` itself before calling `play()`.
 
 This shape wasn't the original design — both functions used to run their
 loop internally, print progress as they went, and `train()` returned the
@@ -268,13 +273,18 @@ line every 500 episodes; `watch.py` feeds `step.result.board` to
 
 Two details fall out of this that are easy to get bitten by:
 
-- **A generator's body doesn't run until it's iterated.** `play()`'s
-  `FileNotFoundError` check for a missing `q_table.json` sits before the
-  first `yield`, so calling `play(config)` and getting back an iterator
-  raises nothing — the check only fires once something actually starts
-  consuming it (`next(...)`, a `for` loop, `list(...)`). Both scripts' `if
-__name__ == "__main__":` guards have to actively drain the generator
-  (`for _ in train(): pass`) or running them directly does nothing at all.
+- **A generator's body doesn't run until it's iterated.** Calling
+  `train(env, agent, n_episodes)` or `play(env, agent, n_episodes)` returns
+  an iterator immediately — none of the loop body runs, not even the first
+  `env.reset()`, until something actually starts consuming it (`next(...)`,
+  a `for` loop, `list(...)`). `main.py`'s `_run_train`/`_run_play` and
+  `watch.py`'s `watch_train`/`watch_play` all do this with a plain `for`
+  loop. An earlier version of `play()` leaned on this directly — its
+  `FileNotFoundError` check for a missing Q-table path sat before the first
+  `yield` inside `play()` itself, so it only fired once iteration started —
+  but that check has since moved out to each caller, which now loads the
+  Q-table (and can fail fast on a missing path) before calling `play()` at
+  all, rather than `play()` doing any loading itself.
 - **`board` vs. `state` are not the same thing, and only one of them is
   lossy.** `StepResult.board` (a `Board`: `grid_size`, `snake_body`, `food`
   as raw coordinates) exists purely so `watch.py`'s renderer has something
@@ -322,11 +332,13 @@ not truncated` — real death. On truncation, it still bootstraps
   `train()`, `play()`, `main.py`'s subparsers, `watch.py`'s subparsers).
   `AgentConfig` / `RenderConfig` / `TrainConfig` / `PlayConfig` are frozen
   dataclasses that now give each of those parameters exactly one source of
-  truth, consumed directly by `QLearningAgent`, `PygameRenderer`, `train()`,
-  `play()`, and `watch.py`'s `watch_train`/`watch_play`. `main.py`/`watch.py`
-  build a config object from parsed CLI args instead of threading a growing
-  list of scalar kwargs through every layer. This is the most recently
-  completed piece of the codebase and isn't superseded by anything later.
+  truth, consumed directly by `QLearningAgent` and `PygameRenderer`.
+  `train()`/`play()` themselves don't take a `TrainConfig`/`PlayConfig` —
+  their signature is `(env, agent, n_episodes, use_shield=True)` — so
+  `main.py`, `watch.py`, and `api.py` each build a config object from
+  parsed CLI args (or, for `api.py`, query params), then construct the
+  `env`/`agent` from it before calling `train()`/`play()`, instead of
+  threading a growing list of scalar kwargs through every layer.
 
 ## Testing
 

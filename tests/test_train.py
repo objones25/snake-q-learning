@@ -1,50 +1,185 @@
-import tempfile
+import random
 from pathlib import Path
 
 import pytest
 
 from config import AgentConfig, TrainConfig
 from q_agent import QLearningAgent
+from snake_env import SnakeEnv
 from snake_state import SnakeState
 from train import train
 
 
 class TestTrain:
     def test_returns_agent_with_correctly_shaped_q_table(self):
-        with tempfile.TemporaryDirectory() as tmpdir:
-            path = Path(tmpdir) / "q_table.json"
-            config = TrainConfig(n_episodes=20, grid_size=8, save_path=path)
-            steps = list(train(config))
-            agent = steps[-1].agent
+        env = SnakeEnv(grid_size=8)
+        agent = QLearningAgent(n_states=SnakeState.N_STATES)
+        steps = list(train(env, agent, 20))
+        result_agent = steps[-1].agent
 
-        assert isinstance(agent, QLearningAgent)
-        assert len(agent.q_table) == SnakeState.N_STATES
-        assert all(len(row) == 3 for row in agent.q_table)
+        assert isinstance(result_agent, QLearningAgent)
+        assert len(result_agent.q_table) == SnakeState.N_STATES
+        assert all(len(row) == 3 for row in result_agent.q_table)
 
     def test_epsilon_decreases_from_start_value(self):
-        with tempfile.TemporaryDirectory() as tmpdir:
-            path = Path(tmpdir) / "q_table.json"
-            config = TrainConfig(n_episodes=20, grid_size=8, save_path=path)
-            steps = list(train(config))
-            agent = steps[-1].agent
+        env = SnakeEnv(grid_size=8)
+        agent = QLearningAgent(n_states=SnakeState.N_STATES)
+        steps = list(train(env, agent, 20))
 
-        assert agent.epsilon == pytest.approx(0.996238)
+        assert steps[-1].agent.epsilon == pytest.approx(0.996238)
 
     def test_death_is_passed_to_update_as_not_truncated(self, monkeypatch):
         seen = []
         original = QLearningAgent.update
 
-        def spy(self, state_index, action, reward, next_index, done, truncated):
+        def spy(self, state_index, action, reward, next_index, done, truncated, next_mask=None):
             if done:
                 seen.append((done, truncated))
-            original(self, state_index, action, reward, next_index, done, truncated)
+            original(self, state_index, action, reward, next_index, done, truncated, next_mask)
 
         monkeypatch.setattr(QLearningAgent, "update", spy)
-        with tempfile.TemporaryDirectory() as tmpdir:
-            config = TrainConfig(n_episodes=20, grid_size=8, save_path=Path(tmpdir) / "q.json")
-            list(train(config))
+        env = SnakeEnv(grid_size=8)
+        agent = QLearningAgent(n_states=SnakeState.N_STATES)
+        list(train(env, agent, 20))
 
         assert (True, False) in seen
+
+
+class TestUseShieldWiring:
+    def test_shield_enabled_passes_a_mask_to_choose_action(self, monkeypatch):
+        seen_masks = []
+        original = QLearningAgent.choose_action
+
+        def spy(self, state_index, mask=None):
+            seen_masks.append(mask)
+            return original(self, state_index, mask)
+
+        monkeypatch.setattr(QLearningAgent, "choose_action", spy)
+        env = SnakeEnv(grid_size=8)
+        agent = QLearningAgent(n_states=SnakeState.N_STATES)
+        list(train(env, agent, 5, use_shield=True))
+
+        assert any(mask is not None for mask in seen_masks)
+
+    def test_shield_disabled_never_passes_a_mask(self, monkeypatch):
+        seen_masks = []
+        original = QLearningAgent.choose_action
+
+        def spy(self, state_index, mask=None):
+            seen_masks.append(mask)
+            return original(self, state_index, mask)
+
+        monkeypatch.setattr(QLearningAgent, "choose_action", spy)
+        env = SnakeEnv(grid_size=8)
+        agent = QLearningAgent(n_states=SnakeState.N_STATES)
+        list(train(env, agent, 5, use_shield=False))
+
+        assert seen_masks
+        assert all(mask is None for mask in seen_masks)
+
+    def test_shield_enabled_passes_a_next_mask_to_update(self, monkeypatch):
+        seen_next_masks = []
+        original = QLearningAgent.update
+
+        def spy(self, state_index, action, reward, next_index, done, truncated, next_mask=None):
+            seen_next_masks.append(next_mask)
+            original(self, state_index, action, reward, next_index, done, truncated, next_mask)
+
+        monkeypatch.setattr(QLearningAgent, "update", spy)
+        env = SnakeEnv(grid_size=8)
+        agent = QLearningAgent(n_states=SnakeState.N_STATES)
+        list(train(env, agent, 5, use_shield=True))
+
+        assert any(next_mask is not None for next_mask in seen_next_masks)
+
+    def test_shield_disabled_never_passes_a_next_mask_to_update(self, monkeypatch):
+        seen_next_masks = []
+        original = QLearningAgent.update
+
+        def spy(self, state_index, action, reward, next_index, done, truncated, next_mask=None):
+            seen_next_masks.append(next_mask)
+            original(self, state_index, action, reward, next_index, done, truncated, next_mask)
+
+        monkeypatch.setattr(QLearningAgent, "update", spy)
+        env = SnakeEnv(grid_size=8)
+        agent = QLearningAgent(n_states=SnakeState.N_STATES)
+        list(train(env, agent, 5, use_shield=False))
+
+        assert seen_next_masks
+        assert all(next_mask is None for next_mask in seen_next_masks)
+
+
+class TestShieldSoak:
+    def test_shielded_training_holds_invariants_every_step(self):
+        # Mirrors test_snake_env.py::TestLifecycle's 500-episode soak test,
+        # but exercises the shield wired into train()'s loop rather than a
+        # bare env under a random policy.
+        grid_size = 8
+        num_episodes = 150
+        random.seed(2)
+
+        env = SnakeEnv(grid_size=grid_size)
+        agent = QLearningAgent(n_states=SnakeState.N_STATES)
+
+        for step in train(env, agent, num_episodes, use_shield=True):
+            body = env.snake.body
+            assert set(body) == env.snake.pos_set
+            assert len(body) == len(set(body))
+            for x, y in body:
+                assert 0 <= x < grid_size
+                assert 0 <= y < grid_size
+            assert 0 <= step.result.state.index < SnakeState.N_STATES
+
+
+class TestShieldSafetyGuarantee:
+    def test_real_death_only_happens_when_the_mask_was_all_false(self, monkeypatch):
+        # The shield's core guarantee: choose_action only ever samples from
+        # actions the mask marks safe (when at least one exists), so a real
+        # death should only be possible when the mask had *no* safe option
+        # left to restrict to. A nonzero epsilon means the agent doesn't
+        # always take the greedy action, giving genuine variety of
+        # situations (including near-death ones) rather than just whatever
+        # the current Q-table happens to prefer.
+        #
+        # This also doubles as a canary for safety.py's collision logic
+        # (safety._resolve_action) drifting from SnakeEnv.step's actual
+        # rules: if they ever disagree, this test starts seeing real deaths
+        # with a non-all-False mask.
+        seen_masks = []
+        original = QLearningAgent.choose_action
+
+        def spy(self, state_index, mask=None):
+            seen_masks.append(mask)
+            return original(self, state_index, mask)
+
+        monkeypatch.setattr(QLearningAgent, "choose_action", spy)
+
+        grid_size = 8
+        num_episodes = 250
+        random.seed(3)
+
+        env = SnakeEnv(grid_size=grid_size)
+        agent = QLearningAgent(
+            n_states=SnakeState.N_STATES,
+            config=AgentConfig(epsilon_start=0.2, epsilon_end=0.2),
+        )
+
+        saw_a_real_death = False
+        for i, step in enumerate(train(env, agent, num_episodes, use_shield=True)):
+            mask = seen_masks[i]
+            if step.result.done and not step.result.truncated:
+                saw_a_real_death = True
+                assert mask is not None
+                assert not any(mask), (
+                    f"real death on episode {step.episode} despite the shield's "
+                    f"mask {mask} marking a safe action available"
+                )
+
+        assert saw_a_real_death, (
+            "no real deaths occurred across the run — strengthen the scenario "
+            "(more episodes/higher epsilon) so this test actually exercises "
+            "the guarantee it's meant to check"
+        )
 
 
 class TestDefaults:

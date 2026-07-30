@@ -10,6 +10,9 @@ from fastapi.responses import StreamingResponse
 from config import AgentConfig, PlayConfig, TrainConfig
 from episode_step import EpisodeStep
 from play import play
+from q_agent import QLearningAgent
+from snake_env import SnakeEnv
+from snake_state import SnakeState
 from train import train
 
 EXAMPLE_Q_TABLE_PATH = Path(__file__).parent / "example_q_table.json"
@@ -37,13 +40,17 @@ def _encode(step: EpisodeStep, epsilon: float | None) -> str:
     return f"data: {json.dumps(payload)}\n\n"
 
 
-async def _stream_train(config: TrainConfig, render_every: int, fps: float) -> AsyncIterator[str]:
+async def _stream_train(
+    config: TrainConfig, render_every: int, fps: float
+) -> AsyncIterator[str]:
+    env = SnakeEnv(grid_size=config.grid_size)
+    agent = QLearningAgent(n_states=SnakeState.N_STATES, config=config.agent)
     delay = 1 / fps
     frames_sent = 0
-    for step in train(config):
+    for step in train(env, agent, config.n_episodes, config.use_shield):
         if step.episode % render_every != 0:
             continue
-        yield _encode(step, epsilon=step.agent.epsilon)
+        yield _encode(step, epsilon=agent.epsilon)
         frames_sent += 1
         if frames_sent >= MAX_FRAMES_PER_STREAM:
             return
@@ -51,11 +58,16 @@ async def _stream_train(config: TrainConfig, render_every: int, fps: float) -> A
 
 
 async def _stream_play(config: PlayConfig, fps: float) -> AsyncIterator[str]:
+    env = SnakeEnv(grid_size=config.grid_size)
+    agent = QLearningAgent(n_states=SnakeState.N_STATES)
+    agent.load(config.q_table_path)
+    agent.epsilon = 0.0
+
     delay = 1 / fps
-    frames_sent = 0
-    for step in play(config):
+    for frames_sent, step in enumerate(
+        play(env, agent, config.n_episodes, config.use_shield), start=1
+    ):
         yield _encode(step, epsilon=None)
-        frames_sent += 1
         if frames_sent >= MAX_FRAMES_PER_STREAM:
             return
         await asyncio.sleep(delay)
@@ -72,6 +84,7 @@ def stream_train(
     epsilon_decay_episodes: int = Query(5_000, ge=1),
     render_every: int = Query(1, ge=1),
     fps: float = Query(30.0, ge=1, le=120),
+    use_shield: bool = Query(True),
 ) -> StreamingResponse:
     config = TrainConfig(
         n_episodes=n_episodes,
@@ -83,6 +96,7 @@ def stream_train(
             epsilon_end=epsilon_end,
             epsilon_decay_episodes=epsilon_decay_episodes,
         ),
+        use_shield=use_shield,
     )
     return StreamingResponse(
         _stream_train(config, render_every, fps),
@@ -96,11 +110,15 @@ def stream_play(
     n_episodes: int = Query(10, ge=1, le=100),
     grid_size: int = Query(20, ge=8, le=40),
     fps: float = Query(10.0, ge=1, le=120),
+    use_shield: bool = Query(True),
 ) -> StreamingResponse:
     if not EXAMPLE_Q_TABLE_PATH.exists():
         raise HTTPException(status_code=503, detail="Q-table unavailable")
     config = PlayConfig(
-        n_episodes=n_episodes, grid_size=grid_size, q_table_path=EXAMPLE_Q_TABLE_PATH
+        n_episodes=n_episodes,
+        grid_size=grid_size,
+        q_table_path=EXAMPLE_Q_TABLE_PATH,
+        use_shield=use_shield,
     )
     return StreamingResponse(
         _stream_play(config, fps), media_type="text/event-stream", headers=SSE_HEADERS
